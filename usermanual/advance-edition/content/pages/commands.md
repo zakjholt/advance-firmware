@@ -143,7 +143,6 @@ Examples:
 **Instrument Retrigger, will retrigger the current instrument. It gives a table the ability to work as progammable phrases that then can be triggered simply by changing tables.**
 
 - `IRT` is a table-only command and is not available on the phrase screen.
-- For audio instruments, IRT restarts playback while preserving command modulation: active ramps continue from their current progress, and completed or immediate command values remain in effect. Other types of modulations like ADSRs and LFOs retrigger normally with the note retrigger.
 - IRT `--bb` will retrigger the current instrument transposed by `bb` semi-tones. Note that each IRT transposition is cumulatively added. So a table with `IRT 0001` will keep going a semitone up. Great for dubby echoes :)
 - This system is also pretty useful to implement temporary non 4/4 signature without having to switch grooves, since you have the ability to re-trigger the instrument at tick resolution
 - don't forget trying to combine it with complex hop structure !
@@ -160,8 +159,7 @@ Performs a logarithmic pitch slide from the previously sounding note to a new ti
 - Put `LEG` on the same row as the new note and leave that row's instrument column empty. The note supplies the destination; without a tied note on that row, `LEG` does nothing.
 - `aa` represents the speed and is equivalent to sequencer ticks. `00` is instant and larger values take longer.
   - `01` takes 1 ticks, `06` takes 1 default step, and `FF` takes 42.5 default steps.
-- `LEG` only modulates the pitch of the voice already playing on the channel;
-it does not trigger or re - trigger any instrument.Whether an instrument(re)triggers is governed by the presence of an instrument number on the row, not by `LEG` (see [Tied Notes / Legato Slides](phrases.html)).
+- `LEG` only modulates the pitch of the voice already playing on the channel; it does not trigger or re-trigger any instrument. Whether an instrument (re)triggers is governed by the presence of an instrument number on the row, not by `LEG` (see [Tied Notes / Legato Slides](phrases.html)).
 - `LEG` uses a logarithmic pitch curve, moving evenly through musical intervals.
 
 When used with MIDI instruments, the `LEG` command retains its exponential MIDI pitch bend behavior:

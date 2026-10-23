@@ -56,7 +56,7 @@ public:
   explicit AudioVoice(int channel);
 
   bool StartInstrument(I_Instrument *instrument, unsigned char note,
-                       InstrumentStartMode mode);
+                       bool trigger);
   bool ProcessCommand(TrackerCommand command, ushort value);
   void ReleaseInstrument();
   void StopInstrument();
@@ -300,17 +300,11 @@ private:
   StandardFilterState standardFilterState_[2];
   FilterMorphState filterMorph_;
   StageLFOMasks stageLfoMasks_;
-  // Command-owned state survives IRT in place. Reset new command state only
-  // in resetCommandState(), never in source/envelope/processing-stage startup.
   CommandValueState ampCommand_;
   CommandValueState panCommand_;
   CommandValueState filterCutoffCommand_;
   CommandValueState filterResonanceCommand_;
   PitchCommandState pitchCommand_;
-  // A TLN command override belongs to the command lifecycle, not the ADSR
-  // timer.
-  uint16_t gateCommandSlicesRemaining_ = 0;
-  bool gateCommandActive_ = false;
   float appliedPitchMultiplier_ = 1.0f;
   bool pitchMultiplierApplied_ = false;
   ChannelLFOBank lfoBank_;

@@ -1,14 +1,10 @@
 /*
- * SPDX-License-Identifier: BSD-3-Clause AND GPL-3.0-only
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 2018 Discodirt
  * Copyright (c) 2024 xiphonics, inc.
  *
  * This file is part of the picoTracker firmware
- *
- * Inherited BSD-licensed material remains BSD-3-Clause.
- * New original contributions by xiphonics, inc. are GPL-3.0-only.
- * Previously granted BSD permissions are preserved. See LICENSING.md.
  */
 
 #ifndef _AUDIO_DRIVER_H_
@@ -55,12 +51,11 @@ public:
 
   virtual bool Interlaced() = 0;
   virtual int GetPlayedBufferPercentage() = 0;
+  virtual void OnAudioActive(bool active) {}
 
   virtual double GetStreamTime() = 0; // in secs
 
-  // Silence only the queued physical output, preserving the rendered samples.
-  void AddBuffer(short *buffer, int size,
-                 bool silenceOutput = false); // samples
+  void AddBuffer(short *buffer, int size); // size in samples
 
   AudioSettings GetAudioSettings();
 

@@ -11,7 +11,6 @@ add_library(
   advSystem.cpp
   advUsbRoleManager.cpp
   input.cpp
-  i2cTransfer.cpp
   critical_error_message.c
   assets/error_bitmaps.c
   advSamplePool.cpp

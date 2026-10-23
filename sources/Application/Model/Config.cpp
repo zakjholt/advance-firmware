@@ -102,7 +102,7 @@ static const char *midiDeviceList[MIDI_DEVICE_LEN] = {"Off", "TRS", "USB",
 static const char *midiInputDeviceList[4] = {"Off", "TRS", "USB",
                                              "TRS+USB"};
 static const char *midiSendSync[2] = {"Off", "Send"};
-static const char *midiClockSyncOptions[2] = {"Internal", "External"};
+static const char *midiClockSyncOptions[2] = {"Off", "On"};
 static const char *remoteUIOnOff[2] = {"Off", "On"};
 static const char *instrumentAuditionOnOff[2] = {"Off", "On"};
 static const char *midiControlSurfaceOptions[2] = {"Off", "Auto"};
@@ -125,6 +125,7 @@ constexpr int DEFAULT_MIDIDEVICE = 0x0;
 constexpr int DEFAULT_MIDI_INPUT_DEVICE = 0x0;
 constexpr int DEFAULT_MIDI_CONTROL_SURFACE = 0x0;
 constexpr int DEFAULT_MIDISYNC = 0x0;
+constexpr int DEFAULT_MIDI_CLOCK_SYNC = 0x0;
 constexpr int DEFAULT_REMOTEUI = 0x1;
 constexpr int DEFAULT_INSTRUMENT_AUDITION = 0x1;
 constexpr int DEFAULT_BACKLIGHT_LEVEL = 0xFF; // Default to max brightness (255)
@@ -268,6 +269,12 @@ static const ConfigParam configParams[] = {
      midiSendSync,
      2,
      false},
+    {"MIDICLOCKSYNC",
+     {.intValue = DEFAULT_MIDI_CLOCK_SYNC},
+     FourCC::VarMidiClockSync,
+     midiClockSyncOptions,
+     2,
+     false},
     {"REMOTEUI",
      {.intValue = DEFAULT_REMOTEUI},
      FourCC::VarRemoteUI,
@@ -377,6 +384,8 @@ Config::Config()
                           midiControlSurfaceOptions, 2,
                           DEFAULT_MIDI_CONTROL_SURFACE),
       midiSync_(FourCC::VarMidiSync, midiSendSync, 2, DEFAULT_MIDISYNC),
+      midiClockSync_(FourCC::VarMidiClockSync, midiClockSyncOptions, 2,
+                     DEFAULT_MIDI_CLOCK_SYNC),
       remoteUI_(FourCC::VarRemoteUI, remoteUIOnOff, 2, DEFAULT_REMOTEUI),
       instrumentAudition_(FourCC::VarInstrumentAudition,
                           instrumentAuditionOnOff, 2,
@@ -409,6 +418,7 @@ Config::Config()
   variables_.push_back(&midiInputDevice_);
   variables_.push_back(&midiControlSurface_);
   variables_.push_back(&midiSync_);
+  variables_.push_back(&midiClockSync_);
   variables_.push_back(&remoteUI_);
   variables_.push_back(&instrumentAudition_);
   variables_.push_back(&importResampler_);

@@ -142,9 +142,9 @@ bool StarLoomInstrument::Init() {
 void StarLoomInstrument::OnStart() { tableState_.Reset(); };
 
 bool StarLoomInstrument::Start(int channel, unsigned char midinote,
-                               InstrumentStartMode mode) {
+                               bool cleanstart) {
   StarLoomChannelRuntime &runtime = GetRuntime(channel);
-  if (mode != InstrumentStartMode::TiedNote) {
+  if (cleanstart) {
     runtime.oscillators[0].Init();
     runtime.oscillators[1].Init();
   }

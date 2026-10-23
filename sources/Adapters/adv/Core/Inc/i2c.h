@@ -29,6 +29,8 @@ extern I2C_HandleTypeDef hi2c4;
 
 /* USER CODE BEGIN Private defines */
 
+#define I2C_TRANSFER_TIMEOUT_MS 5U
+
 /* USER CODE END Private defines */
 
 void MX_I2C4_Init(void);

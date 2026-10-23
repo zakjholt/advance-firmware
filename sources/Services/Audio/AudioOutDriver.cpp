@@ -63,17 +63,24 @@ bool AudioOutDriver::Start() {
   return driver_->Start();
 }
 
-void AudioOutDriver::Stop() { driver_->Stop(); }
+void AudioOutDriver::Stop() {
+  SetAudioActive(false);
+  driver_->Stop();
+}
+
+void AudioOutDriver::SetAudioActive(bool active) {
+  driver_->OnAudioActive(active);
+}
 
 stereosample AudioOutDriver::GetLastPeakLevels() { return lastPeakVolume_; };
 
 PICOTRACKER_FAST_CODE("audio_out_driver_trigger")
-void AudioOutDriver::Trigger(bool silenceOutput) {
+void AudioOutDriver::Trigger() {
   prepareMixBuffers();
   ScopedDWTProfile grandTotalProfile(&gGrandTotalProfile);
   hasSound_ = AudioMixer::Render(primarySoundBuffer_, sampleCount_) > 0;
   clipToMix();
-  driver_->AddBuffer(mixBuffer_, sampleCount_, silenceOutput);
+  driver_->AddBuffer(mixBuffer_, sampleCount_);
 }
 
 void AudioOutDriver::Update(Observable &o, I_ObservableData *d) {

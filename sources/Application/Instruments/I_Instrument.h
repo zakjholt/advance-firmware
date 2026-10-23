@@ -25,11 +25,6 @@
 #include "Foundation/Variables/VariableContainer.h"
 #include <cstdint>
 
-// NewNote resets command state; TiedNote continues playback and commands;
-// Retrigger (IRT) restarts audio playback while retaining command state.
-// MIDI treats Retrigger as NewNote, preserving its existing MIDI semantics.
-enum class InstrumentStartMode { NewNote, TiedNote, Retrigger };
-
 enum InstrumentType {
   IT_NONE = 0,
   IT_SAMPLE,
@@ -79,9 +74,8 @@ public:
   virtual bool Init() = 0;
 
   // Start & stop the instument
-  virtual bool
-  Start(int channel, unsigned char note,
-        InstrumentStartMode mode = InstrumentStartMode::NewNote) = 0;
+  virtual bool Start(int channel, unsigned char note,
+                     bool retrigger = true) = 0;
   virtual void Release(int channel) { (void)channel; }
   virtual void Stop(int channel) = 0;
 

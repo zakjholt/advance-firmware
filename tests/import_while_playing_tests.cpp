@@ -176,11 +176,9 @@ bool operationLogHasNoChdir(const FakeFileSystem &fs) {
 
 TEST_CASE("Single-cycle imports recognize LGPT and AKWF waveforms") {
   CHECK(IsSingleCycleWaveformFile(300));
-  CHECK(IsSingleCycleWaveformFile(1244));
   CHECK(IsSingleCycleWaveformFile(1344));
   CHECK(IsSingleCycleWaveformFile(1376));
   CHECK_FALSE(IsSingleCycleWaveformFile(299));
-  CHECK_FALSE(IsSingleCycleWaveformFile(1243));
   CHECK_FALSE(IsSingleCycleWaveformFile(1377));
 }
 

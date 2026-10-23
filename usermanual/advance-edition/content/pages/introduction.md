@@ -41,7 +41,7 @@ Your picoTracker Advance comes included with a:
 * MicroSD for project, settings and sample storage
 * TRS and USB MIDI In/Out
 * Headphone/Line output and speaker
-* Line input (TRS only) and built-in microphone
+* Line input and built-in microphone
 * Battery lasts up to 6 hours
 * Weight: 233g (8.2oz)
 * Dimensions: 143x78x15mm (5.6x3x0.6in)

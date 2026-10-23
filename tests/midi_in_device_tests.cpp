@@ -21,6 +21,8 @@ int GetPlayerLastMidiChannel();
 int GetPlayerLastMidiInstrument();
 int GetPlayerLastMidiNote();
 int GetPlayerLastMidiInputSource();
+uint32_t GetMidiClockCallCount();
+uint32_t GetLastMidiClockTimestampUs();
 
 namespace {
 
@@ -46,7 +48,9 @@ public:
   void Stop() override { MidiInDevice::Stop(); }
   void poll() override {}
 
-  void EmitMessage(MidiMessage &message) { onDriverMessage(message); }
+  void EmitMessage(MidiMessage &message, uint32_t timestampUs = 0) {
+    onDriverMessage(message, timestampUs);
+  }
 
   int startDriverCallCount_ = 0;
   int stopDriverCallCount_ = 0;
@@ -120,6 +124,10 @@ TEST_CASE("MidiInDevice handles transport without an observer") {
   MidiMessage stop(MidiMessage::MIDI_STOP);
   device.EmitMessage(stop);
   CHECK(GetPlayerStopCallCount() == 1);
+
+  MidiMessage continueMessage(MidiMessage::MIDI_CONTINUE);
+  device.EmitMessage(continueMessage);
+  CHECK(GetPlayerSongStartButtonCallCount() == 2);
 }
 
 TEST_CASE("MidiInDevice does not play notes while stopped") {
@@ -285,4 +293,17 @@ TEST_CASE("MidiNoteTracker clears only notes from the selected input source") {
   CHECK(tracker.getAudioChannelForNote(MidiInputSource::Trs, 64, 4) == -1);
   CHECK(tracker.getAudioChannelForNote(MidiInputSource::Usb, 62, 3) == 5);
   CHECK(tracker.getActiveChannelMask() == (1U << 5));
+}
+
+TEST_CASE("MidiInDevice preserves the receive timestamp for MIDI clock") {
+  ResetPlayerMidiInputTestState();
+
+  TestMidiInDevice device;
+  MidiMessage clock(MidiMessage::MIDI_CLOCK);
+
+  REQUIRE(device.Start());
+  device.EmitMessage(clock, 123456U);
+
+  CHECK(GetMidiClockCallCount() == 1U);
+  CHECK(GetLastMidiClockTimestampUs() == 123456U);
 }

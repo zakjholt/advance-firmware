@@ -2,16 +2,6 @@
 title: Record Screen
 template: page
 ---
-<!--
-SPDX-License-Identifier: BSD-3-Clause AND GPL-3.0-only
-
-Copyright (c) 2026 xiphonics, inc.
-
-Inherited BSD-licensed material remains BSD-3-Clause.
-New original contributions by xiphonics, inc. are GPL-3.0-only.
-Previously granted BSD permissions are preserved. See LICENSING.md.
--->
-
 
 ![record screen screenshot](image/record-screen-small.png)
 
@@ -44,8 +34,6 @@ You can configure the following settings on the Record screen:
 *   **Line gain:** Adjust the input gain for the line-in source.
 *   **Mic gain:** Adjust the input gain for the microphone.
 
-**Note:** The Line In jack requires a **TRS** (tip-ring-sleeve, 3-pole) plug. **TRRS** (4-pole, headset style) plugs are not supported — if your audio source has a TRRS connector, use a passive TRRS to TRS adapter.
-
 Use the <span class="minikeys">ARROW</span> keys to navigate between these settings and <span class="minikeys">EDIT</span> + <span class="minikeys">LEFT</span>/<span class="minikeys">RIGHT</span> to change their values.
 
 ## The Recording Process
@@ -60,5 +48,4 @@ Use the <span class="minikeys">ARROW</span> keys to navigate between these setti
 ## Tips
 
 *   Keep an eye on the VU meter to avoid clipping (when the meter hits the red) and also to have a high enough signal. Adjust the gain accordingly for a clean recording.
-*   If you get no signal at all on the VU meter when using `Line In`, check that your cable has a TRS (3-pole) plug — TRRS (4-pole) headset plugs will not work.
 *   The recorded sample will replace any existing `REC01.wav` file in the `/recordings` directory, so be sure to rename your recordings in the Sample Editor if you want to keep them.

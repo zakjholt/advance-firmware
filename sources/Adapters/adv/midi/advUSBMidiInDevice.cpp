@@ -12,6 +12,7 @@
  */
 
 #include "advUSBMidiInDevice.h"
+#include "Adapters/adv/platform/platform.h"
 #include "Adapters/adv/usb/usb_utils.h"
 #include "System/Console/Trace.h"
 #include "tusb.h"
@@ -24,7 +25,7 @@ extern "C" void advUSBMidiHostFeedRxBytes(const uint8_t *bytes,
                                           uint16_t count) {
   if ((g_hostRxTarget != nullptr) && (bytes != nullptr) && (count != 0u)) {
     for (uint16_t i = 0; i < count; ++i) {
-      g_hostRxTarget->processMidiData(bytes[i]);
+      g_hostRxTarget->processMidiData(bytes[i], micros());
     }
   }
 }
@@ -84,7 +85,7 @@ void advUSBMidiInDevice::poll() {
     }
 
     for (uint8_t i = 0; i < payloadLength; ++i) {
-      processMidiData(packet[1u + i]);
+      processMidiData(packet[1u + i], micros());
     }
   }
 }

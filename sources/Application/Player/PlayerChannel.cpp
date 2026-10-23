@@ -26,11 +26,10 @@ PlayerChannel::PlayerChannel(int index)
 PlayerChannel::~PlayerChannel() {}
 
 void PlayerChannel::StartInstrument(I_Instrument *instr, unsigned char note,
-                                    InstrumentStartMode mode) {
-  const bool reuseMidiInstrument =
-      (midiInstrument_ == instr) && mode == InstrumentStartMode::TiedNote;
+                                    bool retrigger) {
+  const bool reuseMidiInstrument = (midiInstrument_ == instr) && !retrigger;
   const bool reuseVoiceInstrument =
-      (voice_.GetInstrument() == instr) && mode != InstrumentStartMode::NewNote;
+      (voice_.GetInstrument() == instr) && !retrigger;
 
   if ((voice_.GetInstrument() || midiInstrument_) && !reuseMidiInstrument &&
       !reuseVoiceInstrument) {
@@ -44,13 +43,13 @@ void PlayerChannel::StartInstrument(I_Instrument *instr, unsigned char note,
   // shared voice pipeline, but they still need to remain addressable for
   // later commands, note-off, and retriggers on the channel.
   if (instr->GetType() == IT_MIDI) {
-    if (instr->Start(index_, note, mode)) {
+    if (instr->Start(index_, note, retrigger)) {
       midiInstrument_ = instr;
     }
     return;
   }
 
-  voice_.StartInstrument(instr, note, mode);
+  voice_.StartInstrument(instr, note, retrigger);
 };
 
 void PlayerChannel::StopInstrument() {

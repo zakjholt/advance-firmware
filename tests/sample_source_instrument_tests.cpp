@@ -379,7 +379,7 @@ TEST_CASE("Legacy Sample pingpong stays within the sample allocation [#502]") {
   TestSoundSource source(samples.data(), kFrameCount, 44100, 1);
   configureLegacyPingPong(instrument, source, kFrameCount);
 
-  REQUIRE(instrument.Start(0, NOTE_C3, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, NOTE_C3, true));
 
   std::array<AudioSample, kRenderFrameCount * 2> buffer{};
   REQUIRE(instrument.Render(0, buffer.data(), kRenderFrameCount, false));
@@ -404,7 +404,7 @@ TEST_CASE("SampleSourceInstrument slice notes start the selected slice range") {
 
   REQUIRE(instrument.Start(
       0, static_cast<unsigned char>(SampleSourceInstrument::SliceNoteBase + 1),
-      InstrumentStartMode::NewNote));
+      true));
 
   sampleSourceRenderParams &rp = SampleSourceInstrument::renderParams_[0];
   CHECK(rp.sliceActive_);
@@ -428,7 +428,7 @@ TEST_CASE(
                          44100, 1);
   configureMonoPlayback(instrument, source, SSLM_ONESHOT, 2, 0, 5);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
 
   sampleSourceRenderParams &rp = SampleSourceInstrument::renderParams_[0];
   CHECK_FALSE(rp.sliceActive_);
@@ -479,7 +479,7 @@ TEST_CASE(
                          44100, 1);
   configureMonoPlayback(instrument, source, SSLM_REVERSE, 1, 0, 5);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.0f);
 
   std::array<AudioSample, 5> buffer{};
@@ -506,7 +506,7 @@ TEST_CASE("SampleSourceInstrument play offset command repositions reverse "
   configureMonoPlayback(instrument, source, SSLM_REVERSE, 0, 0,
                         static_cast<int>(kSamples.size()));
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   instrument.ProcessCommand(0, TrackerCommand::InstrumentCommandPlayOfset,
                             0x8000);
   forcePlaybackSpeed(1.0f);
@@ -530,7 +530,7 @@ TEST_CASE("SampleSourceInstrument adds a short tail when a oneshot ends away "
                          44100, 1);
   configureMonoOneShot(instrument, source, static_cast<int>(kSamples.size()));
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
 
   std::array<AudioSample, 64> buffer{};
   REQUIRE(instrument.Render(0, buffer.data(), static_cast<int>(buffer.size()),
@@ -562,7 +562,7 @@ TEST_CASE("SampleSourceInstrument adds a short tail when the configured end "
                          44100, 1);
   configureMonoOneShot(instrument, source, 4);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
 
   std::array<AudioSample, 64> buffer{};
   REQUIRE(instrument.Render(0, buffer.data(), static_cast<int>(buffer.size()),
@@ -594,14 +594,14 @@ TEST_CASE(
                          44100, 1);
   configureMonoOneShot(instrument, source, static_cast<int>(kSamples.size()));
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
 
   std::array<AudioSample, 1> first{};
   REQUIRE(instrument.Render(0, first.data(), static_cast<int>(first.size()),
                             false));
   CHECK(first[0] == doctest::Approx(pcmToAudioSample(1000)));
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::TiedNote));
+  REQUIRE(instrument.Start(0, 60, false));
 
   std::array<AudioSample, 1> second{};
   REQUIRE(instrument.Render(0, second.data(), static_cast<int>(second.size()),
@@ -620,7 +620,7 @@ TEST_CASE("SampleSourceInstrument one-shot plays through configured end") {
                          44100, 1);
   configureMonoOneShot(instrument, source, 4);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.0f);
 
   std::array<AudioSample, 8> buffer{};
@@ -645,7 +645,7 @@ TEST_CASE("SampleSourceInstrument loop mode repeats from loop start") {
                          44100, 1);
   configureMonoPlayback(instrument, source, SSLM_LOOP, 0, 1, 4);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.0f);
 
   std::array<AudioSample, 7> buffer{};
@@ -670,7 +670,7 @@ TEST_CASE("SampleSourceInstrument reverse loop mode repeats backward") {
                          44100, 1);
   configureMonoPlayback(instrument, source, SSLM_REVERSE_LOOP, 0, 1, 4);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.0f);
 
   std::array<AudioSample, 7> buffer{};
@@ -697,7 +697,7 @@ TEST_CASE("SampleSourceInstrument loop mode crossfades into loop point") {
                          44100, 1);
   configureMonoPlayback(instrument, source, SSLM_LOOP, 0, 10, 50);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.0f);
 
   std::array<AudioSample, 51> buffer{};
@@ -724,7 +724,7 @@ TEST_CASE(
                          44100, 1);
   configureMonoPlayback(instrument, source, SSLM_REVERSE_LOOP, 0, 10, 50);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.0f);
 
   std::array<AudioSample, 41> buffer{};
@@ -748,7 +748,7 @@ TEST_CASE("SampleSourceInstrument loop offset command shifts loop range") {
                          44100, 1);
   configureMonoPlayback(instrument, source, SSLM_LOOP, 0, 1, 4);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   instrument.ProcessCommand(0, TrackerCommand::InstrumentCommandLoopOfset, 1);
 
   sampleSourceRenderParams &rp = SampleSourceInstrument::renderParams_[0];
@@ -767,7 +767,7 @@ TEST_CASE("SampleSourceInstrument reports wrapped loop playback position") {
                          44100, 1);
   configureMonoPlayback(instrument, source, SSLM_LOOP, 0, 1, 4);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.0f);
 
   uint32_t position = 0;
@@ -792,7 +792,7 @@ TEST_CASE("SampleSourceInstrument pingpong mode reflects at both loop ends") {
                          44100, 1);
   configureMonoPlayback(instrument, source, SSLM_LOOP_PINGPONG, 0, 0, 4);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.0f);
 
   std::array<AudioSample, 8> buffer{};
@@ -817,7 +817,7 @@ TEST_CASE(
                          44100, 1);
   configureMonoPlayback(instrument, source, SSLM_LOOP_PINGPONG, 0, 0, 4);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.0f);
 
   std::array<AudioSample, 5> buffer{};
@@ -840,7 +840,7 @@ TEST_CASE("SampleSourceInstrument oscillator mode wraps inside loop range") {
                          44100, 1);
   configureMonoPlayback(instrument, source, SSLM_OSC, 0, 1, 4);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.0f);
 
   std::array<AudioSample, 6> buffer{};
@@ -866,7 +866,7 @@ TEST_CASE(
   configureMonoPlayback(instrument, source, SSLM_OSC, 0, 0,
                         static_cast<int>(kSamples.size()));
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(13.0f);
 
   std::array<AudioSample, 5> buffer{};
@@ -890,7 +890,7 @@ TEST_CASE("SampleSourceInstrument oscillator mode interpolates across wrap") {
   configureMonoPlayback(instrument, source, SSLM_OSC, 0, 0,
                         static_cast<int>(kSamples.size()));
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   SampleSourceInstrument::renderParams_[0].position_ = 3.5f;
   forcePlaybackSpeed(1.0f);
 
@@ -914,7 +914,7 @@ TEST_CASE("SampleSourceInstrument oscillator mode limits long loops") {
   configureMonoPlayback(instrument, source, SSLM_OSC, 0, 0,
                         static_cast<int>(kSamples.size()));
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
 
   CHECK(SampleSourceInstrument::renderParams_[0].rendLoopStart_ == 0);
   CHECK(SampleSourceInstrument::renderParams_[0].rendLoopEnd_ == 4096);
@@ -1038,7 +1038,7 @@ TEST_CASE("SampleSourceInstrument clamped oscillator matches 4096-frame "
   configureMonoPlayback(exactInstrument, exactSource, SSLM_OSC, 0, 0,
                         static_cast<int>(kExactSamples.size()));
 
-  REQUIRE(exactInstrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(exactInstrument.Start(0, 60, true));
   const float exactBaseSpeed =
       SampleSourceInstrument::renderParams_[0].baseSpeed_;
   CHECK(SampleSourceInstrument::renderParams_[0].rendLoopStart_ == 0);
@@ -1056,7 +1056,7 @@ TEST_CASE("SampleSourceInstrument clamped oscillator matches 4096-frame "
   configureMonoPlayback(longInstrument, longSource, SSLM_OSC, 0, 0,
                         static_cast<int>(kLongSamples.size()));
 
-  REQUIRE(longInstrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(longInstrument.Start(0, 60, true));
   CHECK(SampleSourceInstrument::renderParams_[0].rendLoopStart_ == 0);
   CHECK(SampleSourceInstrument::renderParams_[0].rendLoopEnd_ == 4096);
   CHECK(SampleSourceInstrument::renderParams_[0].baseSpeed_ ==
@@ -1086,7 +1086,7 @@ TEST_CASE("SampleSourceInstrument loop sync mode wraps inside loop range") {
                          44100, 1);
   configureMonoPlayback(instrument, source, SSLM_LOOPSYNC, 0, 1, 4);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.0f);
 
   std::array<AudioSample, 6> buffer{};
@@ -1115,7 +1115,7 @@ TEST_CASE("SampleSourceInstrument loop sync fast path preserves stereo Hermite "
   TestSoundSource source(kSamples.data(), 6, 44100, 2);
   configureMonoPlayback(instrument, source, SSLM_LOOPSYNC, 0, 1, 5);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.5f);
 
   std::array<AudioSample, 12> buffer{};
@@ -1145,7 +1145,7 @@ TEST_CASE("SampleSourceInstrument uses Hermite interpolation by default") {
                          22050, 1);
   configureMonoOneShot(instrument, source, static_cast<int>(kSamples.size()));
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
 
   std::array<AudioSample, 4> buffer{};
   REQUIRE(instrument.Render(0, buffer.data(), static_cast<int>(buffer.size()),
@@ -1176,7 +1176,7 @@ TEST_CASE(
   requireVariable(instrument, FourCC::SampleSourceInstrumentLoopStart)
       ->SetInt(0, false);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
 
   std::array<AudioSample, 8> buffer{};
   REQUIRE(instrument.Render(0, buffer.data(), static_cast<int>(buffer.size()),
@@ -1202,7 +1202,7 @@ TEST_CASE(
                          22050, 1);
   configureMonoPlayback(instrument, source, SSLM_LOOP_PINGPONG, 0, 0, 4);
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
 
   std::array<AudioSample, 8> buffer{};
   REQUIRE(instrument.Render(0, buffer.data(), static_cast<int>(buffer.size()),
@@ -1227,7 +1227,7 @@ TEST_CASE(
   configureMonoPlayback(instrument, source, SSLM_LOOP, 0, 0,
                         static_cast<int>(samples.size()));
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   forcePlaybackSpeed(1.0f);
   SyncMaster::GetInstance()->SetTempo(120);
 
@@ -1266,7 +1266,7 @@ TEST_CASE("SampleSourceInstrument applies the AudioVoice pitch multiplier to "
                          44100, 1);
   configureMonoOneShot(instrument, source, static_cast<int>(samples.size()));
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   instrument.SetPitchMultiplier(0, 2.0f);
 
   sampleSourceRenderParams &renderParams =
@@ -1279,29 +1279,4 @@ TEST_CASE("SampleSourceInstrument applies the AudioVoice pitch multiplier to "
   CHECK(buffer[0] == doctest::Approx(pcmToAudioSample(0)));
   CHECK(buffer[1] == doctest::Approx(pcmToAudioSample(2000)));
   CHECK(buffer[2] == doctest::Approx(pcmToAudioSample(4000)));
-}
-
-TEST_CASE("SampleSourceInstrument IRT restarts playback and preserves RTG "
-          "countdown") {
-  static constexpr std::array<int16_t, 8192> samples{};
-  TestSamplePool pool;
-  SamplePoolInstallGuard poolGuard(&pool);
-  SampleSourceInstrument instrument;
-  TestSoundSource source(samples.data(), static_cast<int>(samples.size()),
-                         44100, 1);
-  configureMonoPlayback(instrument, source, SSLM_LOOP, 0, 0,
-                        static_cast<int>(samples.size()));
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
-  instrument.ProcessCommand(0, TrackerCommand::InstrumentCommandRetrigger,
-                            0x0302);
-  auto &params = SampleSourceInstrument::renderParams_[0];
-  CHECK_FALSE(params.retrigger_.AdvanceTick());
-  params.position_ = 100.0f;
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::Retrigger));
-  CHECK(params.position_ == doctest::Approx(0.0f));
-  CHECK(params.retrigger_.IsActive());
-  CHECK_FALSE(params.retrigger_.AdvanceTick());
-  CHECK(params.retrigger_.AdvanceTick());
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
-  CHECK_FALSE(params.retrigger_.IsActive());
 }

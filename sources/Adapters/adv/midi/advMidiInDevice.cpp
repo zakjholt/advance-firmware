@@ -18,8 +18,13 @@
 #include "System/Console/n_assert.h"
 #include "main.h"
 
+struct MidiRxByte {
+  uint32_t timestampUs;
+  uint8_t data;
+};
+
 // ETL queue for MIDI input
-static etl::queue_spsc_atomic<uint8_t, 128> midi_rx_queue;
+static etl::queue_spsc_atomic<MidiRxByte, 128> midi_rx_queue;
 
 // Static pointer to the UART handle for use in the callback
 static UART_HandleTypeDef *g_midi_huart = &MIDI_UART;
@@ -36,7 +41,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
   if (huart->Instance == g_midi_huart->Instance) {
     // Store the received byte in the ETL queue
     if (!midi_rx_queue.full()) {
-      midi_rx_queue.push(g_rx_byte);
+      const MidiRxByte receivedByte = {
+          .timestampUs = micros(),
+          .data = g_rx_byte,
+      };
+      midi_rx_queue.push(receivedByte);
     } else {
       // MIDI RX Queue full!
       NAssert(false);
@@ -104,10 +113,10 @@ void advMidiInDevice::stopDriver() {
 }
 
 void advMidiInDevice::poll() {
-  uint8_t data;
+  MidiRxByte receivedByte;
   // processes any data that the HAL_UART_RxCpltCallback has placed in the queue
-  while (midi_rx_queue.pop(data)) {
+  while (midi_rx_queue.pop(receivedByte)) {
     // Process the MIDI data
-    processMidiData(data);
+    processMidiData(receivedByte.data, receivedByte.timestampUs);
   }
 }

@@ -329,15 +329,11 @@ AudioVoice::AudioVoice(int channel)
 }
 
 bool AudioVoice::StartInstrument(I_Instrument *instrument, unsigned char note,
-                                 InstrumentStartMode mode) {
-  if (mode == InstrumentStartMode::Retrigger && source_ != instrument) {
-    mode = InstrumentStartMode::NewNote;
-  }
-  const bool continueVoice =
-      source_ == instrument && mode == InstrumentStartMode::TiedNote;
+                                 bool trigger) {
+  const bool continueVoice = (source_ == instrument) && !trigger;
   const int16_t precedingNote = currentNote_;
 
-  if (source_ && !continueVoice && mode != InstrumentStartMode::Retrigger) {
+  if (source_ && !continueVoice) {
     StopInstrument();
   }
 
@@ -345,12 +341,8 @@ bool AudioVoice::StartInstrument(I_Instrument *instrument, unsigned char note,
     return false;
   }
 
-  if (mode == InstrumentStartMode::Retrigger) {
-    instrument->Stop(channel_);
-  }
-  const bool started = instrument->Start(channel_, note, mode);
-  if (!started) {
-    if (continueVoice || mode == InstrumentStartMode::Retrigger) {
+  if (!instrument->Start(channel_, note, trigger)) {
+    if (continueVoice) {
       StopInstrument();
     } else {
       source_ = nullptr;
@@ -369,24 +361,20 @@ bool AudioVoice::StartInstrument(I_Instrument *instrument, unsigned char note,
     legatoNotePending_ = false;
   }
   lfoBank_.SetInstrument(source_);
-  lfoBank_.OnNoteStart(mode != InstrumentStartMode::TiedNote);
+  lfoBank_.OnNoteStart(trigger);
   refreshParameterRefs();
   updateFilterEnvelopeParameters();
   updateAmpEnvelopeParameters();
 
   if (!continueVoice) {
-    // IRT deliberately bypasses the entire command reset lifecycle. New
-    // commands participate automatically; never snapshot selected commands.
-    if (mode != InstrumentStartMode::Retrigger) {
-      resetCommandState();
-    }
+    resetCommandState();
     resetTriggerRelease();
     releasePending_ = false;
     ampEnvelope_.NoteOn();
     filterEnvelope_.NoteOn();
   }
 
-  if (mode != InstrumentStartMode::TiedNote) {
+  if (trigger) {
     resetStageState();
   }
   pitchMultiplierApplied_ = false;
@@ -435,8 +423,7 @@ bool AudioVoice::ProcessCommand(TrackerCommand command, ushort value) {
     return true;
 
   case TrackerCommand::InstrumentCommandGateLength:
-    gateCommandSlicesRemaining_ = static_cast<uint16_t>((value & 0xFF) + 1);
-    gateCommandActive_ = true;
+    triggerReleaseSlicesRemaining_ = static_cast<uint16_t>((value & 0xFF) + 1);
     return true;
 
   default:
@@ -932,21 +919,17 @@ void AudioVoice::resetTriggerRelease() {
 
 PICOTRACKER_FAST_CODE("audio_voice_advance_trigger_release")
 void AudioVoice::advanceTriggerRelease(bool updateTick) {
-  uint16_t &remaining = gateCommandActive_ ? gateCommandSlicesRemaining_
-                                           : triggerReleaseSlicesRemaining_;
-  if (!updateTick || releasePending_ || remaining == 0) {
+  if (!updateTick || releasePending_ || triggerReleaseSlicesRemaining_ == 0) {
     return;
   }
 
-  remaining--;
-  if (remaining == 0) {
+  triggerReleaseSlicesRemaining_--;
+  if (triggerReleaseSlicesRemaining_ == 0) {
     ReleaseInstrument();
   }
 }
 
 void AudioVoice::resetCommandState() {
-  gateCommandSlicesRemaining_ = 0;
-  gateCommandActive_ = false;
   resetCommandValue(ampCommand_);
   resetCommandValue(panCommand_);
   resetCommandValue(filterCutoffCommand_);

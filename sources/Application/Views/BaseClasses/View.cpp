@@ -16,6 +16,7 @@
 #include "Application/AppWindow.h"
 #include "Application/Player/PlayButtonBehavior.h"
 #include "Application/Player/Player.h"
+#include "Application/Player/SyncMaster.h"
 #include "Application/Utils/HelpLegend.h"
 #include "Application/Utils/char.h"
 #include "Application/Utils/mathutils.h"
@@ -671,19 +672,18 @@ void View::drawTitlebar(GUITextProperties &props) {
 }
 
 void View::drawStatusIndicators(GUITextProperties &props) {
-  // Layout: columns 21-27 for status indicators before the battery widget.
-  //   21: playing indicator (>)
-  //   22: audition/MIDI/sample/phrase/chain/tail indicator (A/M/S/P/C/T)
-  //   23: separator
-  //   24-26: project BPM
-  //   27: gap (space)
-  constexpr int kStatusWidgetStartX = SCREEN_WIDTH - 11; // column 21
+  // Layout: columns 22-27 (6 chars for status indicators)
+  //   22: playing indicator (>)
+  //   23: audition/MIDI/sample/phrase/chain/tail indicator (A/M/S/P/C/T)
+  //   24-26: effective BPM
+  //   27: active clock source (I/M)
+  constexpr int kStatusWidgetStartX = SCREEN_WIDTH - 10; // column 22
   GUIPoint statusPos(0, 0);
 
   GUITextProperties normalProps = props;
   normalProps.invert_ = false;
 
-  // Status indicators at columns 21-22 (each draws space when inactive)
+  // Status indicators at columns 22-23 (each draws space when inactive)
   Player *player = Player::GetInstance();
   const bool isRunning = player != nullptr && player->IsRunning();
   const bool isAuditioning = player != nullptr && player->IsAuditioning();
@@ -697,7 +697,7 @@ void View::drawStatusIndicators(GUITextProperties &props) {
   const PlaybackStatusIndicator playbackStatus = ResolvePlaybackStatusIndicator(
       isRunning, isAuditioning, isMidiInputPlaying, isSamplePreviewing,
       isTailPlaying, playMode);
-  int indicatorX = kStatusWidgetStartX; // column 21
+  int indicatorX = kStatusWidgetStartX; // column 22
 
   // Playing indicator: ">" while any playback status is active.
   if (ShowsPlaybackIcon(playbackStatus)) {
@@ -718,15 +718,21 @@ void View::drawStatusIndicators(GUITextProperties &props) {
   DrawString(indicatorX, statusPos._y, statusSuffix, normalProps);
   indicatorX++;
 
-  // Show the project tempo, including nudging, even while playback is stopped.
+  // Show the oscillator's effective tempo. MIDI clock and fallback timing is
+  // averaged for the display so its small phase corrections do not flicker.
   char bpmText[4];
-  const int tempo =
-      viewData_ && viewData_->project_ ? viewData_->project_->GetTempo() : 0;
-  npf_snprintf(bpmText, sizeof(bpmText), "%3d", tempo);
+  SyncMaster *sync = SyncMaster::GetInstance();
+  const int effectiveTempo = sync != nullptr ? sync->GetDisplayTempo() : 0;
+  npf_snprintf(bpmText, sizeof(bpmText), "%3d", effectiveTempo);
   SetColor(CD_WARN);
-  DrawString(indicatorX, statusPos._y, " ", normalProps);
-  DrawString(indicatorX + 1, statusPos._y, bpmText, normalProps);
-  DrawString(indicatorX + 4, statusPos._y, " ", normalProps);
+  DrawString(indicatorX, statusPos._y, bpmText, normalProps);
+  indicatorX += 3;
+
+  const char *clockSourceText =
+      sync != nullptr && sync->GetActiveClockSource() == SyncClockSource::Midi
+          ? "M"
+          : "I";
+  DrawString(indicatorX, statusPos._y, clockSourceText, normalProps);
 
   // Battery at far right
   drawBattery(props);
@@ -814,7 +820,6 @@ void View::printHelpLegend(TrackerCommand command, GUITextProperties props) {
     return;
   }
 
-  SetColor(CD_NORMAL);
   HelpLegendPair helpLegend = getHelpLegend(command);
   // clear top two lines (including title bar)
   DrawString(0, 0, "                           ", props);

@@ -16,6 +16,7 @@
 #include "Services/Midi/ControlSurface/LaunchpadMiniMk3Surface.h"
 #include "Services/Midi/MidiService.h"
 #include <cstddef>
+#include <cstdint>
 
 extern "C" const firmware_info_t firmware_info = {
     .magic = 0xC0D31355,
@@ -42,6 +43,8 @@ const I_Instrument *playerInstrumentInUse = nullptr;
 int selectedMidiInputChannel = -1;
 int selectedMidiInputProgram = -1;
 bool gPlayerRunning = false;
+uint32_t gMidiClockCallCount = 0;
+uint32_t gLastMidiClockTimestampUs = 0;
 } // namespace
 
 void ClearQueuedMidiMessagesForTest() { gQueuedMidiMessageCount = 0; }
@@ -53,6 +56,8 @@ const MidiMessage &GetQueuedMidiMessageForTest(size_t index) {
 }
 
 void ResetPlayerMidiInputTestState() {
+  static MidiService midiService;
+  MidiService::Install(&midiService);
   gPlayerSongStartButtonCallCount = 0;
   gPlayerStopCallCount = 0;
   gPlayerPlayNoteCallCount = 0;
@@ -64,6 +69,8 @@ void ResetPlayerMidiInputTestState() {
   gPlayerLastMidiInputSource = -1;
   playerInstrumentInUse = nullptr;
   gPlayerRunning = false;
+  gMidiClockCallCount = 0;
+  gLastMidiClockTimestampUs = 0;
 }
 
 void SetPlayerInstrumentInUseForTest(const I_Instrument *instrument) {
@@ -97,6 +104,10 @@ int GetPlayerLastMidiNote() { return gPlayerLastMidiNote; }
 
 int GetPlayerLastMidiInputSource() { return gPlayerLastMidiInputSource; }
 
+uint32_t GetMidiClockCallCount() { return gMidiClockCallCount; }
+
+uint32_t GetLastMidiClockTimestampUs() { return gLastMidiClockTimestampUs; }
+
 MidiService::MidiService() {}
 
 MidiService::~MidiService() {}
@@ -119,6 +130,13 @@ bool MidiService::IsInputProgramSelected(int midiChannel,
   return midiChannel == selectedMidiInputChannel &&
          program == selectedMidiInputProgram;
 }
+
+void MidiService::OnMidiClock(uint32_t timestampUs) {
+  gMidiClockCallCount++;
+  gLastMidiClockTimestampUs = timestampUs;
+}
+
+bool MidiService::IsMidiClockInputEnabled() const { return false; }
 
 void MidiService::registerControlSurfaceInputs(IControlSurface &surface) {
   (void)surface;

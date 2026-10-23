@@ -1,14 +1,4 @@
 /*
- * SPDX-License-Identifier: MIT AND GPL-3.0-only
- *
- * Copyright (c) 2026 xiphonics, inc.
- *
- * Inherited MIT-licensed material remains under MIT.
- * New original contributions by xiphonics, inc. are GPL-3.0-only.
- * Existing license grants and original notices are preserved. See LICENSING.md.
- */
-
-/*
  * The MIT License (MIT)
  *
  * Copyright (c) 2019 Ha Thach (tinyusb.org)
@@ -1860,13 +1850,10 @@ static bool enum_parse_configuration_desc(uint8_t dev_addr, tusb_desc_configurat
     uint16_t const drv_len = tu_desc_get_interface_total_len(desc_itf, assoc_itf_count, (uint16_t) (desc_end-p_desc));
     TU_ASSERT(drv_len >= sizeof(tusb_desc_interface_t));
 
-    bool driver_opened = false;
-
     // Find driver for this interface
     for (uint8_t drv_id = 0; drv_id < TOTAL_DRIVER_COUNT; drv_id++) {
       usbh_class_driver_t const * driver = get_driver(drv_id);
       if (driver && driver->open(dev->bus_info.rhport, dev_addr, desc_itf, drv_len) ) {
-        driver_opened = true;
         // open successfully
         TU_LOG_USBH("  %s opened\r\n", driver->name);
 
@@ -1875,7 +1862,6 @@ static bool enum_parse_configuration_desc(uint8_t dev_addr, tusb_desc_configurat
           uint8_t const itf_num = desc_itf->bInterfaceNumber+i;
 
           // Interface number must not be used already
-          TU_ASSERT(itf_num < CFG_TUH_INTERFACE_MAX);
           TU_ASSERT( TUSB_INDEX_INVALID_8 == dev->itf2drv[itf_num] );
           dev->itf2drv[itf_num] = drv_id;
         }
@@ -1893,16 +1879,7 @@ static bool enum_parse_configuration_desc(uint8_t dev_addr, tusb_desc_configurat
     }
 
     // next Interface or IAD descriptor
-    if (driver_opened) {
-      p_desc += drv_len;
-    } else {
-      // If driver didn't claim the interface/group, only advance past this
-      // single interface so subsequent interfaces in the association/config
-      // (e.g. MIDI in a composite device) can be evaluated.
-      uint16_t const single_itf_len = tu_desc_get_interface_total_len(
-          desc_itf, 1, (uint16_t)(desc_end - p_desc));
-      p_desc += (single_itf_len > 0) ? single_itf_len : drv_len;
-    }
+    p_desc += drv_len;
   }
 
   return true;

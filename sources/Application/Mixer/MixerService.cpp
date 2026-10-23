@@ -276,13 +276,10 @@ void MixerService::Update(Observable &o, I_ObservableData *d) {
   AudioDriver::Event *event = (AudioDriver::Event *)d;
   if (event->type_ == AudioDriver::Event::ADET_BUFFERNEEDED) {
     Lock();
-    // The sequencer can stop rendering during NotifyObservers(), resetting
-    // mode_. Keep the final stem buffer silent even after that transition.
-    const bool wasRenderingStems = mode_ == MSM_FILESPLIT;
     SetChanged();
     NotifyObservers();
 
-    out_->Trigger(wasRenderingStems || mode_ == MSM_FILESPLIT);
+    out_->Trigger();
     Unlock();
   }
 }
@@ -426,9 +423,6 @@ void MixerService::setRenderingMode(MixerServiceMode mode) {
       bus_[i].EnableRendering(true);
     };
     for (int i = 0; i < OUTPUT_EFFECT_COUNT; ++i) {
-      if (i != kOutputEffectDelayIndex && i != kOutputEffectReverbIndex) {
-        continue;
-      }
       bus_[OUTPUT_EFFECT_BUS_BASE + i].SetRenderGain(kAudioSampleOne);
       bus_[OUTPUT_EFFECT_BUS_BASE + i].EnableRendering(true);
     }
@@ -498,9 +492,6 @@ bool MixerService::configureRenderPaths() {
     bus_[i].SetFileRenderer(path);
   }
   for (int i = 0; i < OUTPUT_EFFECT_COUNT; ++i) {
-    if (i != kOutputEffectDelayIndex && i != kOutputEffectReverbIndex) {
-      continue;
-    }
     npf_snprintf(path, sizeof(path), "/renders/%s-%s.wav", projectname,
                  GetOutputEffectFileStemForSlot(i));
     bus_[OUTPUT_EFFECT_BUS_BASE + i].SetFileRenderer(path);

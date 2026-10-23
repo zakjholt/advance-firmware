@@ -10,11 +10,11 @@
  * Previously granted BSD permissions are preserved. See LICENSING.md.
  */
 #include "charger.h"
-#include "Adapters/adv/system/i2cTransfer.h"
 #include "FreeRTOS.h"
 #include "System/Console/Trace.h"
 #include "chargerWatchdog.h"
 #include "gpio.h"
+#include "i2c.h"
 #include "platform.h"
 #include "rtc.h"
 #include "task.h"
@@ -72,8 +72,8 @@ struct HostPowerPollStatus {
 
 static bool readChargerRegister(uint8_t reg, uint8_t &value) {
   const HAL_StatusTypeDef status =
-      AdvI2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, reg, I2C_MEMADD_SIZE_8BIT,
-                      &value, 1, I2C_TRANSFER_TIMEOUT_MS);
+      HAL_I2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, reg, I2C_MEMADD_SIZE_8BIT,
+                       &value, 1, I2C_TRANSFER_TIMEOUT_MS);
   if (status != HAL_OK) {
     Trace::Error("charger read reg 0x%02X failed: %i", reg, status);
     return false;
@@ -180,7 +180,7 @@ static bool resetChargerWatchdog(void) {
   }
 
   regValue |= (1u << BQ25601_WD_RST_BIT);
-  const HAL_StatusTypeDef status = AdvI2C_Mem_Write(
+  const HAL_StatusTypeDef status = HAL_I2C_Mem_Write(
       &hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_CHARGING_REG, I2C_MEMADD_SIZE_8BIT,
       &regValue, 1, I2C_TRANSFER_TIMEOUT_MS);
   if (status != HAL_OK) {
@@ -271,7 +271,7 @@ static bool startChargerWatchdogTimer(void) {
 // Note: NOT_CHARGING enum is specifically made to be 0 (ie. false)
 ChargingStatus getChargingStatus() {
   uint8_t reg_value = 0;
-  HAL_StatusTypeDef status = AdvI2C_Mem_Read(
+  HAL_StatusTypeDef status = HAL_I2C_Mem_Read(
       &hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_STATUS_REG, I2C_MEMADD_SIZE_8BIT,
       &reg_value, 1, I2C_TRANSFER_TIMEOUT_MS);
 
@@ -315,7 +315,7 @@ void powerOff() {
 
   // if powered on only shutdown processor
   uint8_t reg_value = 0;
-  HAL_StatusTypeDef status = AdvI2C_Mem_Read(
+  HAL_StatusTypeDef status = HAL_I2C_Mem_Read(
       &hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_STATUS_REG, I2C_MEMADD_SIZE_8BIT,
       &reg_value, 1, I2C_TRANSFER_TIMEOUT_MS);
 
@@ -374,7 +374,7 @@ void powerOff() {
     Trace::Log("POWEROFF", "Deep sleep");
     // BATFET_DIS = 1 as well as: BATFET_RST_EN = 1, TMR2X_EN = 1
     uint8_t value = 0x64;
-    HAL_StatusTypeDef status = AdvI2C_Mem_Write(
+    HAL_StatusTypeDef status = HAL_I2C_Mem_Write(
         &hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_SHIPMODE_REG,
         I2C_MEMADD_SIZE_8BIT, &value, 1, I2C_TRANSFER_TIMEOUT_MS);
     if (status != HAL_OK) {
@@ -387,9 +387,9 @@ ChargerInt chargerIntReason() {
   // First check if there is any fault active
   // Read FAULT reg
   uint8_t value = 0;
-  HAL_StatusTypeDef status =
-      AdvI2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_FAULT_REG,
-                      I2C_MEMADD_SIZE_8BIT, &value, 1, I2C_TRANSFER_TIMEOUT_MS);
+  HAL_StatusTypeDef status = HAL_I2C_Mem_Read(
+      &hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_FAULT_REG, I2C_MEMADD_SIZE_8BIT,
+      &value, 1, I2C_TRANSFER_TIMEOUT_MS);
 
   if (status != HAL_OK) {
     Trace::Error("GetCharginStatus: i2c read error: %i", status);
@@ -404,9 +404,9 @@ ChargerInt chargerIntReason() {
 
   // check charge termination and VBUS state
   // Read STATUS reg
-  status =
-      AdvI2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_STATUS_REG,
-                      I2C_MEMADD_SIZE_8BIT, &value, 1, I2C_TRANSFER_TIMEOUT_MS);
+  status = HAL_I2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_STATUS_REG,
+                            I2C_MEMADD_SIZE_8BIT, &value, 1,
+                            I2C_TRANSFER_TIMEOUT_MS);
 
   if (status != HAL_OK) {
     Trace::Error("GetCharginStatus: i2c read error: %i", status);
@@ -420,9 +420,9 @@ ChargerInt chargerIntReason() {
 
   // Check for VBUS OK or KO
   // Read INT reg
-  status =
-      AdvI2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_INT_REG,
-                      I2C_MEMADD_SIZE_8BIT, &value, 1, I2C_TRANSFER_TIMEOUT_MS);
+  status = HAL_I2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_INT_REG,
+                            I2C_MEMADD_SIZE_8BIT, &value, 1,
+                            I2C_TRANSFER_TIMEOUT_MS);
 
   if (status != HAL_OK) {
     Trace::Error("GetCharginStatus: i2c read error: %i", status);
@@ -440,9 +440,9 @@ ChargerInt chargerIntReason() {
 
 bool startCharging(void) {
   uint8_t value;
-  HAL_StatusTypeDef status =
-      AdvI2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_CHARGING_REG,
-                      I2C_MEMADD_SIZE_8BIT, &value, 1, I2C_TRANSFER_TIMEOUT_MS);
+  HAL_StatusTypeDef status = HAL_I2C_Mem_Read(
+      &hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_CHARGING_REG, I2C_MEMADD_SIZE_8BIT,
+      &value, 1, I2C_TRANSFER_TIMEOUT_MS);
 
   if (status != HAL_OK) {
     Trace::Error("GetChargingStatus: i2c read error: %i", status);
@@ -450,9 +450,9 @@ bool startCharging(void) {
   }
 
   value |= (1 << BIT_CHG_CONFIG);
-  status = AdvI2C_Mem_Write(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_CHARGING_REG,
-                            I2C_MEMADD_SIZE_8BIT, &value, 1,
-                            I2C_TRANSFER_TIMEOUT_MS);
+  status = HAL_I2C_Mem_Write(&hi2c4, BQ25601_I2C_ADDR << 1,
+                             BQ25601_CHARGING_REG, I2C_MEMADD_SIZE_8BIT, &value,
+                             1, I2C_TRANSFER_TIMEOUT_MS);
   if (status != HAL_OK) {
     Trace::Error("i2c write error: %i\r\n", status);
     return false;
@@ -462,9 +462,9 @@ bool startCharging(void) {
 
 bool stopCharging(void) {
   uint8_t value;
-  HAL_StatusTypeDef status =
-      AdvI2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_CHARGING_REG,
-                      I2C_MEMADD_SIZE_8BIT, &value, 1, I2C_TRANSFER_TIMEOUT_MS);
+  HAL_StatusTypeDef status = HAL_I2C_Mem_Read(
+      &hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_CHARGING_REG, I2C_MEMADD_SIZE_8BIT,
+      &value, 1, I2C_TRANSFER_TIMEOUT_MS);
 
   if (status != HAL_OK) {
     Trace::Error("GetChargingStatus: i2c read error: %i", status);
@@ -472,9 +472,9 @@ bool stopCharging(void) {
   }
 
   value &= ~(1 << BIT_CHG_CONFIG);
-  status = AdvI2C_Mem_Write(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_CHARGING_REG,
-                            I2C_MEMADD_SIZE_8BIT, &value, 1,
-                            I2C_TRANSFER_TIMEOUT_MS);
+  status = HAL_I2C_Mem_Write(&hi2c4, BQ25601_I2C_ADDR << 1,
+                             BQ25601_CHARGING_REG, I2C_MEMADD_SIZE_8BIT, &value,
+                             1, I2C_TRANSFER_TIMEOUT_MS);
   if (status != HAL_OK) {
     Trace::Error("i2c write error: %i\r\n", status);
     return false;
@@ -484,7 +484,7 @@ bool stopCharging(void) {
 
 bool setHostPowerEnabled(bool enabled) {
   uint8_t value = chargerHostPowerReg01Value(enabled);
-  const HAL_StatusTypeDef status = AdvI2C_Mem_Write(
+  const HAL_StatusTypeDef status = HAL_I2C_Mem_Write(
       &hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_CHARGING_REG, I2C_MEMADD_SIZE_8BIT,
       &value, 1, I2C_TRANSFER_TIMEOUT_MS);
   if (status != HAL_OK) {
@@ -529,9 +529,9 @@ bool setHostPowerEnabled(bool enabled) {
   }
 
   uint8_t disabledValue = chargerHostPowerReg01Value(false);
-  (void)AdvI2C_Mem_Write(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_CHARGING_REG,
-                         I2C_MEMADD_SIZE_8BIT, &disabledValue, 1,
-                         I2C_TRANSFER_TIMEOUT_MS);
+  (void)HAL_I2C_Mem_Write(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_CHARGING_REG,
+                          I2C_MEMADD_SIZE_8BIT, &disabledValue, 1,
+                          I2C_TRANSFER_TIMEOUT_MS);
   logHostPowerDiagnostics("startup-timeout");
   return false;
 }
@@ -543,18 +543,18 @@ void configureCharger(void) {
   // starts from a known hardware state, even if the charger stayed powered
   // across MCU resets or firmware updates.
   uint8_t reset_value = (1 << BQ25601_REG_RESET_BIT);
-  status = AdvI2C_Mem_Write(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_RESET_REG,
-                            I2C_MEMADD_SIZE_8BIT, &reset_value, 1,
-                            I2C_TRANSFER_TIMEOUT_MS);
+  status = HAL_I2C_Mem_Write(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_RESET_REG,
+                             I2C_MEMADD_SIZE_8BIT, &reset_value, 1,
+                             I2C_TRANSFER_TIMEOUT_MS);
   if (status != HAL_OK) {
     Trace::Error("Charger register reset failed: %i", status);
     return;
   }
 
   uint8_t watchdog_value = 0;
-  status = AdvI2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_TIMER_REG,
-                           I2C_MEMADD_SIZE_8BIT, &watchdog_value, 1,
-                           I2C_TRANSFER_TIMEOUT_MS);
+  status = HAL_I2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_TIMER_REG,
+                            I2C_MEMADD_SIZE_8BIT, &watchdog_value, 1,
+                            I2C_TRANSFER_TIMEOUT_MS);
   if (status != HAL_OK) {
     Trace::Error("Watchdog status read failed: %i", status);
   } else {
@@ -571,9 +571,9 @@ void configureCharger(void) {
   }
 
   uint8_t reg_value = 0;
-  status = AdvI2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_STATUS_REG,
-                           I2C_MEMADD_SIZE_8BIT, &reg_value, 1,
-                           I2C_TRANSFER_TIMEOUT_MS);
+  status = HAL_I2C_Mem_Read(&hi2c4, BQ25601_I2C_ADDR << 1, BQ25601_STATUS_REG,
+                            I2C_MEMADD_SIZE_8BIT, &reg_value, 1,
+                            I2C_TRANSFER_TIMEOUT_MS);
   if (status != HAL_OK) {
     Trace::Error("Power status read failed: %i", status);
     return;

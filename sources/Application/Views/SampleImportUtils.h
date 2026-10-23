@@ -17,11 +17,9 @@
 
 #include <cstdint>
 
-// LGPT and AKWF single-cycle waveform file sizes. Project-pool imports rewrite
-// 600-frame AKWF files with a 44-byte PCM header, resulting in 1244 bytes.
+// LGPT and AKWF single-cycle waveform file sizes.
 constexpr bool IsSingleCycleWaveformFile(uint64_t fileSize) {
-  return fileSize == 1376 || fileSize == 1344 || fileSize == 1244 ||
-         fileSize == 300;
+  return fileSize == 1376 || fileSize == 1344 || fileSize == 300;
 }
 
 #endif

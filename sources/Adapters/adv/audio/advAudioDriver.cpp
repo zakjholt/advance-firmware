@@ -138,6 +138,16 @@ void advAudioDriver::SetVolume(int v) {
 
 int advAudioDriver::GetVolume() { return tlv320_get_volume(); };
 
+void advAudioDriver::OnAudioActive(bool active) {
+  // Keep codec output silent when audio is marked inactive, such as during
+  // stem rendering. This does not change the speaker amplifier state.
+  if (active) {
+    tlv320_unmute();
+  } else {
+    tlv320_mute();
+  }
+}
+
 void advAudioDriver::CloseDriver(){
     // Not really used, maybe for sleep?
 };
@@ -157,8 +167,6 @@ bool advAudioDriver::StartDriver() {
 
   startTime_ = HAL_GetTick();
 
-  // Codec output stays enabled across playback and render transitions.
-  // This does not change the speaker amplifier state.
   tlv320_unmute();
   return true;
 };

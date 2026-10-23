@@ -1,14 +1,4 @@
 /*
- * SPDX-License-Identifier: MIT AND GPL-3.0-only
- *
- * Copyright (c) 2026 xiphonics, inc.
- *
- * Inherited MIT-licensed material remains under MIT.
- * New original contributions by xiphonics, inc. are GPL-3.0-only.
- * Existing license grants and original notices are preserved. See LICENSING.md.
- */
-
-/*
  * The MIT License (MIT)
  *
  * Copyright (c) 2019 Ha Thach (tinyusb.org)
@@ -230,28 +220,9 @@ bool midih_open(uint8_t rhport, uint8_t dev_addr, tusb_desc_interface_t const *d
               tu_desc_subtype(p_desc) == AUDIO_CS_AC_INTERFACE_HEADER);
     desc_cb.desc_audio_control = desc_itf;
 
-    // Advance to the next interface descriptor
-    while ((p_desc < p_end) && (tu_desc_type(p_desc) != TUSB_DESC_INTERFACE)) {
-      if (tu_desc_len(p_desc) == 0) {
-        return false;
-      }
-      p_desc = tu_desc_next(p_desc);
-    }
-    TU_VERIFY(p_desc < p_end);
+    p_desc = tu_desc_next(p_desc);
     desc_itf = (const tusb_desc_interface_t *)p_desc;
     TU_VERIFY(TUSB_CLASS_AUDIO == desc_itf->bInterfaceClass);
-    TU_VERIFY(AUDIO_SUBCLASS_MIDI_STREAMING == desc_itf->bInterfaceSubClass);
-
-    // Verify there is no third interface within max_len (i.e. this is a pure
-    // AC+MIDI pair, not composite)
-    uint16_t const ms_len = tu_desc_get_interface_total_len(
-        desc_itf, 1, (uint16_t)(p_end - (const uint8_t *)desc_itf));
-    const uint8_t *after_ms = ((const uint8_t *)desc_itf) + ms_len;
-    if (after_ms < p_end && tu_desc_type(after_ms) == TUSB_DESC_INTERFACE) {
-      // More interfaces exist in this association (e.g. Audio Streaming).
-      // Reject opening from AC so that interfaces can be claimed individually.
-      return false;
-    }
     p_midi->itf_count = 1;
   }
   TU_VERIFY(AUDIO_SUBCLASS_MIDI_STREAMING == desc_itf->bInterfaceSubClass);
@@ -302,35 +273,22 @@ bool midih_open(uint8_t rhport, uint8_t dev_addr, tusb_desc_interface_t const *d
 
       case TUSB_DESC_ENDPOINT: {
         const tusb_desc_endpoint_t *p_ep = (const tusb_desc_endpoint_t *) p_desc;
-        uint8_t num_cables = 1;
-        const uint8_t *next_desc = tu_desc_next(p_desc);
-        if (next_desc < p_end) {
-          const size_t remaining = (size_t)(p_end - next_desc);
-          TU_VERIFY(remaining >= 2);
-          if (tu_desc_type(next_desc) == TUSB_DESC_CS_ENDPOINT) {
-            TU_VERIFY(remaining >= sizeof(midi_desc_cs_endpoint_t));
-            TU_VERIFY(tu_desc_len(next_desc) >=
-                      sizeof(midi_desc_cs_endpoint_t));
-            TU_VERIFY(tu_desc_len(next_desc) <= remaining);
-            p_desc = next_desc;
-            const midi_desc_cs_endpoint_t *p_csep =
-                (const midi_desc_cs_endpoint_t *)p_desc;
-            num_cables =
-                (p_csep->bNumEmbMIDIJack > 0) ? p_csep->bNumEmbMIDIJack : 1;
-          }
-        }
+        p_desc = tu_desc_next(p_desc); // next to CS endpoint
+        TU_VERIFY(p_desc < p_end && tu_desc_next(p_desc) <= p_end);
+        const midi_desc_cs_endpoint_t *p_csep =
+            (const midi_desc_cs_endpoint_t *)p_desc;
 
         TU_LOG_DRV("  Endpoint and CS_Endpoint descriptor %02x\r\n", p_ep->bEndpointAddress);
         if (tu_edpt_dir(p_ep->bEndpointAddress) == TUSB_DIR_OUT) {
           p_midi->ep_out = p_ep->bEndpointAddress;
-          p_midi->tx_cable_count = num_cables;
+          p_midi->tx_cable_count = p_csep->bNumEmbMIDIJack;
           desc_cb.desc_epout = p_ep;
 
           TU_ASSERT(tuh_edpt_open(dev_addr, p_ep));
           tu_edpt_stream_open(&p_midi->ep_stream.tx, p_ep);
         } else {
           p_midi->ep_in = p_ep->bEndpointAddress;
-          p_midi->rx_cable_count = num_cables;
+          p_midi->rx_cable_count = p_csep->bNumEmbMIDIJack;
           desc_cb.desc_epin = p_ep;
 
           TU_ASSERT(tuh_edpt_open(dev_addr, p_ep));

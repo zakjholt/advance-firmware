@@ -31,8 +31,7 @@ public:
   virtual bool Init();
 
   // Start & stop the instument
-  virtual bool Start(int channel, unsigned char note,
-                     InstrumentStartMode mode = InstrumentStartMode::NewNote);
+  virtual bool Start(int channel, unsigned char note, bool retrigger = true);
   virtual void Release(int channel) override;
   virtual void Stop(int channel);
 

@@ -332,7 +332,7 @@ TEST_CASE("FM6 instrument renders packed mono audio") {
 
   REQUIRE(instrument.Init());
   CHECK(instrument.GetAudioBufferLayout(0) == AudioBufferLayout::MonoPacked);
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   REQUIRE(instrument.Render(0, buffer.data(), 64, false));
 
   AudioSample total = 0.0f;
@@ -361,8 +361,8 @@ TEST_CASE("FM6 program selection changes rendered timbre") {
   programZero.SetBuiltInPatch(0);
   programThree.SetBuiltInPatch(3);
 
-  REQUIRE(programZero.Start(0, 60, InstrumentStartMode::NewNote));
-  REQUIRE(programThree.Start(1, 60, InstrumentStartMode::NewNote));
+  REQUIRE(programZero.Start(0, 60, true));
+  REQUIRE(programThree.Start(1, 60, true));
   REQUIRE(programZero.Render(0, bufferZero.data(), 64, false));
   REQUIRE(programThree.Render(1, bufferThree.data(), 64, false));
 
@@ -475,13 +475,13 @@ TEST_CASE("FM6 legato start keeps the sounding voice running") {
   REQUIRE(legato.Init());
   REQUIRE(fresh.Init());
 
-  REQUIRE(legato.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(legato.Start(0, 60, true));
   REQUIRE(legato.Render(0, legatoBuffer.data(), 128, false));
 
   // Non-retrigger start on the active voice changes pitch mid-envelope, so
   // its output differs from a freshly triggered voice at the same note.
-  REQUIRE(legato.Start(0, 72, InstrumentStartMode::TiedNote));
-  REQUIRE(fresh.Start(1, 72, InstrumentStartMode::NewNote));
+  REQUIRE(legato.Start(0, 72, false));
+  REQUIRE(fresh.Start(1, 72, true));
   REQUIRE(legato.Render(0, legatoBuffer.data(), 128, false));
   REQUIRE(fresh.Render(1, freshBuffer.data(), 128, false));
 
@@ -498,7 +498,7 @@ TEST_CASE("FM6 legato start keeps the sounding voice running") {
   fresh.Stop(1);
 
   // A legato start on an inactive voice still starts the note.
-  REQUIRE(legato.Start(0, 60, InstrumentStartMode::TiedNote));
+  REQUIRE(legato.Start(0, 60, false));
   legatoBuffer.fill(kAudioSampleZero);
   REQUIRE(legato.Render(0, legatoBuffer.data(), 128, false));
   AudioSample total = 0.0f;
@@ -515,7 +515,7 @@ TEST_CASE("FM6 render writes every sample of a slice until the voice ends") {
   FM6Instrument instrument;
   REQUIRE(instrument.Init());
   instrument.ImportDx7Patch(record.data());
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
 
   // 96 is not a multiple of the 64-sample FM render block, so the voice's end
   // can land inside a slice and exercise the zero-filled remainder.

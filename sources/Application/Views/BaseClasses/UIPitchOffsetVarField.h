@@ -18,7 +18,7 @@
 
 namespace UIPitchOffsetVarFieldDetail {
 
-constexpr size_t DisplayWidth = 6;
+constexpr size_t DisplayWidth = 7;
 using DisplayText = etl::string<DisplayWidth>;
 
 inline DisplayText FormatPitchOffsetCents(int32_t cents) {

@@ -27,10 +27,9 @@ set(BRAIDS_SOURCES
 add_executable(picoTracker_tests
   adv_usb_host_power_policy_tests.cpp
   audio_voice_tests.cpp
-  audio_output_silence_tests.cpp
-  ../sources/Services/Audio/AudioDriver.cpp
   delay_output_effect_tests.cpp
   dattorro_reverb_tests.cpp
+  midi_clock_sync_tests.cpp
   midi_in_device_tests.cpp
   midi_instrument_tests.cpp
   sample_source_instrument_tests.cpp
@@ -56,7 +55,6 @@ add_executable(picoTracker_tests
   foundation_types_tests.cpp
   charger_host_power_tests.cpp
   charger_watchdog_tests.cpp
-  i2c_recovery_tests.cpp
   command_list_tests.cpp
   instrument_pool_tests.cpp
   output_effect_slot_tests.cpp

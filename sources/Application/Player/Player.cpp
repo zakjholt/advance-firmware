@@ -224,7 +224,9 @@ void Player::Start(PlayMode mode, bool forceSongMode, MixerServiceMode msmMode,
   // Let's get started !
 
   SyncMaster::GetInstance()->Start();
-  // Playback and file rendering leave the codec output enabled.
+  // keep analog output muted during stem rendering to avoid
+  // audible glitches while multiple stem files are being written.
+  SetAudioActive(msmMode != MSM_FILESPLIT);
 
   firstPlayCycle_ = true;
   mode_ = viewData_->playMode_;
@@ -317,7 +319,11 @@ void Player::Start(PlayMode mode, bool forceSongMode, MixerServiceMode msmMode,
 }
 
 void Player::stopLocked(PlayerStopMode stopMode) {
-  // Leave the codec output enabled so voice releases and FX tails can finish.
+  // This checks whether audio is still active in the mixer right now, not
+  // whether the sequencer will still be running after this stop call. We
+  // sample it before releasing channels so analog output stays enabled long
+  // enough for voice release and FX tails.
+  bool keepAudioActive = mixer_.IsPlaying();
 
   if (stopMode == PSM_PANIC) {
     mixer_.Panic();
@@ -351,6 +357,9 @@ void Player::stopLocked(PlayerStopMode stopMode) {
   SetChanged();
   PlayerEvent pe(PET_STOP);
   NotifyObservers(&pe);
+  if (!keepAudioActive) {
+    SetAudioActive(false);
+  }
 }
 
 void Player::Stop(PlayerStopMode stopMode) {
@@ -368,6 +377,7 @@ void Player::Kill() {
     directNoteAuditionState_.Clear();
     midiInputNoteState_.Clear();
     midiNoteTracker_.clear();
+    SetAudioActive(false);
   }
   mixer_.Unlock();
 }
@@ -536,7 +546,6 @@ int Player::GetChannelSongPlayPosition(int channel) {
 void Player::OnStartButton(PlayMode origin, unsigned int from,
                            bool startFromPrevious, unsigned char chainPos,
                            MixerServiceMode msmMode, bool stopAtEnd) {
-
   switch (GetSequencerMode()) {
 
   case SM_SONG:
@@ -563,7 +572,6 @@ void Player::OnSongStartButton(unsigned int from, unsigned int to,
                                bool requestStop, bool forceImmediate,
                                MixerServiceMode msmMode, bool stopAtEnd,
                                int useStartRow, SongLoopRange songLoopRange) {
-
   switch (GetSequencerMode()) {
 
   case SM_SONG:
@@ -862,12 +870,13 @@ void Player::Update(Observable &o, I_ObservableData *d) {
   MidiService::GetInstance()->Trigger();
   project_->Trigger();
 
+  SyncMaster *sync = SyncMaster::GetInstance();
+  sync->SetTempo(project_->GetTempo());
+  sync->UpdateClock(System::GetInstance()->Micros());
+
   if (isRunning_) {
     ScopedDWTProfile playerControlProfile(&gPlayerControlProfile,
                                           GetVoicesTotalProfileStats());
-
-    SyncMaster *sync = SyncMaster::GetInstance();
-    sync->SetTempo(project_->GetTempo());
 
     if (!firstPlayCycle_) {
       Groove::GetInstance()->Trigger();
@@ -1291,12 +1300,12 @@ void Player::playCursorPosition(int channel) {
 
       // get instrument for next note
 
-      InstrumentStartMode startMode = InstrumentStartMode::TiedNote;
+      bool shouldRetrigger = false;
 
       I_Instrument *instrument;
       if (instr != 0xFF) {
         instrument = bank->GetInstrument(instr);
-        startMode = InstrumentStartMode::NewNote;
+        shouldRetrigger = true;
       } else {
         instrument = mixer_.GetLastInstrument(channel);
       }
@@ -1334,17 +1343,16 @@ void Player::playCursorPosition(int channel) {
         // Check if note is in acceptable midi range
 
         if (note < 128) {
-          if (startMode == InstrumentStartMode::NewNote) {
+          if (shouldRetrigger) {
             mixer_.StopInstrument(channel);
           }
-          mixer_.StartInstrument(channel, instrument, note, startMode);
+          mixer_.StartInstrument(channel, instrument, note, shouldRetrigger);
           int instrTable = instrument->GetTable();
 
           // If an instrument number has been specified && instrument has table,
           // we trigger the table.
 
-          if (instrTable != VAR_OFF &&
-              startMode == InstrumentStartMode::NewNote) {
+          if ((instrTable != VAR_OFF) && (shouldRetrigger)) {
             Table &table = th->GetTable(instrTable);
             bool automated = instrument->GetTableAutomation();
             if (automated) {
@@ -1356,7 +1364,7 @@ void Player::playCursorPosition(int channel) {
             }
           } else {
             // if there was an instrument number, we stop the table
-            if (startMode == InstrumentStartMode::NewNote) {
+            if (shouldRetrigger) {
               atp.Stop();
               tpb.Stop();
             }
@@ -1453,8 +1461,12 @@ void Player::RetriggerChannelInstrumentAtNote(int channel, int note,
   }
   // clear pending release before stopping
   timeToRelease_[channel] = 0;
-  mixer_.StartInstrument(channel, instrument, note,
-                         InstrumentStartMode::Retrigger);
+  mixer_.StopInstrument(channel);
+  // Legacy SampleInstrument is locked to its historical IRT behavior, which
+  // restarts playback without resetting its instrument-owned command state.
+  // Every other instrument treats IRT like a normal clean retrigger.
+  const bool retrigger = instrument->GetType() != IT_SAMPLE;
+  mixer_.StartInstrument(channel, instrument, note, retrigger);
 
   if (stepAutomationTable) {
     StepAutomationTableForRetrigger(channel, instrument);
@@ -1786,22 +1798,49 @@ unsigned int PlayerEvent::GetTickCount() { return tickCount_; };
 
 void Player::StartStreaming(const char *name, int startSample) {
   mixer_.StartStreaming(name, startSample);
+  if (!isRunning_) {
+    SetAudioActive(true);
+  }
 }
 
 void Player::StartLoopingStreaming(const char *name) {
   mixer_.StartLoopingStreaming(name);
+  if (!isRunning_) {
+    SetAudioActive(true);
+  }
 }
 
-void Player::StopStreaming() { mixer_.StopStreaming(); }
+void Player::StopStreaming() {
+  mixer_.StopStreaming();
+  if (!isRunning_ && !mixer_.IsPlaying()) {
+    SetAudioActive(false);
+  }
+}
 
 bool Player::IsStreamingActive() { return mixer_.IsStreamingActive(); }
 
 void Player::StartRecordStreaming(uint16_t *srcBuffer, uint32_t size,
                                   bool stereo) {
   mixer_.StartRecordStreaming(srcBuffer, size, stereo);
+  if (!isRunning_) {
+    SetAudioActive(true);
+  }
 }
 
-void Player::StopRecordStreaming() { mixer_.StopRecordStreaming(); }
+void Player::StopRecordStreaming() {
+  mixer_.StopRecordStreaming();
+  if (!isRunning_ && !mixer_.IsPlaying()) {
+    SetAudioActive(false);
+  }
+}
+
+void Player::SetAudioActive(bool active) {
+  MixerService *ms = MixerService::GetInstance();
+  AudioOut *out = (ms != nullptr) ? ms->GetAudioOut() : nullptr;
+  if (out) {
+    out->SetAudioActive(active);
+  }
+}
 
 bool Player::IsPlaying() { return mixer_.IsPlaying(); }
 
@@ -1893,9 +1932,11 @@ void Player::PlayDirectNote(unsigned short instrumentIndex,
     timeToRelease_[playerChannel] = 0;
     hex2char(static_cast<uint8_t>(instrumentIndex),
              instrumentOnChannel_[playerChannel]);
-    mixer_.StartInstrument(playerChannel, instrument, note,
-                           InstrumentStartMode::NewNote);
+    mixer_.StartInstrument(playerChannel, instrument, note, true);
     state.StartChannel(static_cast<uint8_t>(playerChannel));
+    if (!isRunning_) {
+      SetAudioActive(true);
+    }
   }
 }
 
@@ -1913,6 +1954,9 @@ void Player::StopDirectNote(unsigned short channel,
   int playerChannel = channel % SONG_CHANNEL_COUNT;
   mixer_.StopInstrument(playerChannel);
   state.StopChannel(static_cast<uint8_t>(playerChannel));
+  if (!isRunning_ && !mixer_.IsPlaying()) {
+    SetAudioActive(false);
+  }
 }
 
 void Player::PlayMidiNote(MidiInputSource inputSource, uint8_t midiChannel,
@@ -1960,6 +2004,9 @@ void Player::StopMidiNote(MidiInputSource inputSource, uint8_t midiChannel,
     // project changes, and MIDI input assignment changes.
     mixer_.ReleaseInstrument(songChannel);
     midiInputNoteState_.StopChannel(static_cast<uint8_t>(songChannel));
+    if (!isRunning_ && !mixer_.IsPlaying()) {
+      SetAudioActive(false);
+    }
     SetChanged();
     PlayerEvent pe(PET_NOTE_UPDATE);
     NotifyObservers(&pe);
@@ -1984,8 +2031,12 @@ void Player::ReleaseMidiInputSource(MidiInputSource inputSource) {
       midiInputNoteState_.StopChannel(songChannel);
     }
   }
+  const bool keepAudioActive = isRunning_ || mixer_.IsPlaying();
   mixer_.Unlock();
 
+  if (!keepAudioActive) {
+    SetAudioActive(false);
+  }
   SetChanged();
   PlayerEvent pe(PET_NOTE_UPDATE);
   NotifyObservers(&pe);
@@ -2011,5 +2062,10 @@ void Player::OnMidiInputAssignmentChanged(uint8_t songChannel) {
     viewData_->currentPlayChain_[songChannel] = EMPTY_SONG_VALUE;
     viewData_->currentPlayPhrase_[songChannel] = EMPTY_SONG_VALUE;
   }
+  const bool keepAudioActive = isRunning_ || mixer_.IsPlaying();
   mixer_.Unlock();
+
+  if (!keepAudioActive) {
+    SetAudioActive(false);
+  }
 }

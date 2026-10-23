@@ -14,6 +14,7 @@
 #include "MidiInDevice.h"
 #include "Application/Model/Song.h"
 #include "Application/Player/Player.h"
+#include "Services/Midi/MidiService.h"
 #include "System/Console/Trace.h"
 #include "System/System/System.h"
 
@@ -111,21 +112,22 @@ void MidiInDevice::onMidiContinue() {
   }
 };
 
-void MidiInDevice::onMidiTempoTick() {
-  MidiSyncData data(MSM_TEMPOTICK);
-  SetChanged();
-  NotifyObservers();
+void MidiInDevice::onMidiTempoTick(uint32_t timestampUs) {
+  MidiService *service = MidiService::GetInstance();
+  if (service != nullptr) {
+    service->OnMidiClock(timestampUs);
+  }
 };
 
 void MidiInDevice::queueEvent(MidiEvent &event){
     // TODO: queue the event
 };
 
-void MidiInDevice::onDriverMessage(MidiMessage &message) {
+void MidiInDevice::onDriverMessage(MidiMessage &message, uint32_t timestampUs) {
   SetChanged();
   NotifyObservers(&message);
   if (isRunning_ && !message.IsConsumed()) {
-    treatChannelEvent(message);
+    treatChannelEvent(message, timestampUs);
   }
 };
 
@@ -133,7 +135,7 @@ void MidiInDevice::Trigger(){
     // No-op: events are handled immediately in onDriverMessage.
 };
 
-void MidiInDevice::treatChannelEvent(MidiMessage &event) {
+void MidiInDevice::treatChannelEvent(MidiMessage &event, uint32_t timestampUs) {
 
   int midiChannel = event.status_ & MIDI_CHANNEL_MASK;
 
@@ -149,7 +151,7 @@ void MidiInDevice::treatChannelEvent(MidiMessage &event) {
   // First check for system real-time messages which need to be compared with
   // the full status byte
   if (event.status_ == MidiMessage::MIDI_CLOCK) {
-    onMidiTempoTick();
+    onMidiTempoTick(timestampUs);
     return;
   } else if (event.status_ == MidiMessage::MIDI_START) {
     onMidiStart();
@@ -262,7 +264,7 @@ int MidiInDevice::GetProgramForChannel(int midiChannel) const {
   return -1; // No program assigned
 }
 
-void MidiInDevice::processMidiData(uint8_t data) {
+void MidiInDevice::processMidiData(uint8_t data, uint32_t timestampUs) {
   // Handle MIDI data byte
   if (data & 0x80) {
     // This is a status byte
@@ -273,7 +275,7 @@ void MidiInDevice::processMidiData(uint8_t data) {
       msg.status_ = data;
       msg.data1_ = MidiMessage::UNUSED_BYTE;
       msg.data2_ = MidiMessage::UNUSED_BYTE;
-      onDriverMessage(msg);
+      onDriverMessage(msg, timestampUs);
       return; // Don't change the running status
     }
 
@@ -306,7 +308,7 @@ void MidiInDevice::processMidiData(uint8_t data) {
         msg.status_ = midiStatus;
         msg.data1_ = MidiMessage::UNUSED_BYTE;
         msg.data2_ = MidiMessage::UNUSED_BYTE;
-        onDriverMessage(msg);
+        onDriverMessage(msg, timestampUs);
         break;
       }
     } else {
@@ -339,7 +341,7 @@ void MidiInDevice::processMidiData(uint8_t data) {
         msg.status_ = midiStatus;
         msg.data1_ = midiData1;
         msg.data2_ = MidiMessage::UNUSED_BYTE;
-        onDriverMessage(msg);
+        onDriverMessage(msg, timestampUs);
       }
     } else if (midiDataCount == 1 && midiDataBytes == 2) {
       // We have all the data we need for a 2-byte message
@@ -347,7 +349,7 @@ void MidiInDevice::processMidiData(uint8_t data) {
       msg.status_ = midiStatus;
       msg.data1_ = midiData1;
       msg.data2_ = data;
-      onDriverMessage(msg);
+      onDriverMessage(msg, timestampUs);
 
       // Reset data count but keep status for running status
       midiDataCount = 0;

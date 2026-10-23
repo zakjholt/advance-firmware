@@ -157,9 +157,8 @@ void PlayerMixer::Update(Observable &o, I_ObservableData *d) {
 };
 
 void PlayerMixer::StartInstrument(int channel, I_Instrument *instrument,
-                                  unsigned char note,
-                                  InstrumentStartMode mode) {
-  channel_[channel]->StartInstrument(instrument, note, mode);
+                                  unsigned char note, bool retrigger) {
+  channel_[channel]->StartInstrument(instrument, note, retrigger);
   lastInstrument_[channel] = instrument;
   notes_[channel] = note;
 };

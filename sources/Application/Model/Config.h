@@ -42,7 +42,7 @@ public:
   void ResetTheme();
 
 private:
-  etl::vector<Variable *, 27> variables_;
+  etl::vector<Variable *, 28> variables_;
   // Config variables (kept as members to avoid heap allocation)
   WatchedVariable background_;
   WatchedVariable foreground_;
@@ -61,6 +61,7 @@ private:
   WatchedVariable midiInputDevice_;
   WatchedVariable midiControlSurface_;
   WatchedVariable midiSync_;
+  WatchedVariable midiClockSync_;
   WatchedVariable remoteUI_;
   WatchedVariable instrumentAudition_;
   WatchedVariable importResampler_;

@@ -53,20 +53,20 @@ protected:
   // The concrete device type defines which physical input owns its notes.
   virtual MidiInputSource getInputSource() const = 0;
 
-  void treatChannelEvent(MidiMessage &event);
+  void treatChannelEvent(MidiMessage &event, uint32_t timestampUs);
   bool isRunning_;
 
   // Callbacks from driver
 
-  void onDriverMessage(MidiMessage &event);
-  void onMidiTempoTick();
+  void onDriverMessage(MidiMessage &event, uint32_t timestampUs = 0);
+  void onMidiTempoTick(uint32_t timestampUs);
   void onMidiStart();
   void onMidiStop();
   void onMidiContinue();
   void queueEvent(MidiEvent &event);
 
   // MIDI message parsing
-  void processMidiData(uint8_t data);
+  void processMidiData(uint8_t data, uint32_t timestampUs = 0);
 
 private:
   void resetParserState();

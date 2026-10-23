@@ -88,7 +88,7 @@ TEST_CASE("SID instrument applies its selected chip model when starting") {
         AdvanceSID::Model::MOS6581);
 
   chip->SetInt(SID_CHIP_8580);
-  REQUIRE(instrument.Start(channel, 60, InstrumentStartMode::TiedNote));
+  REQUIRE(instrument.Start(channel, 60, false));
   CHECK(SIDInstrument::renderParams_[channel].sid_.GetModel() ==
         AdvanceSID::Model::MOS8580);
   CHECK((SIDInstrument::renderParams_[channel].sid_.Register[4] & 1) == 1);
@@ -490,7 +490,7 @@ TEST_CASE(
   REQUIRE(ampRelease->GetInt() == 0xFF);
 
   AudioVoice voice(channel);
-  REQUIRE(voice.StartInstrument(instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(instrument, 60, true));
   REQUIRE(voice.Render(buffer, renderSamples, false));
   voice.ReleaseInstrument();
 

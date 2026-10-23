@@ -45,8 +45,7 @@ public:
   virtual ~SampleInstrument();
   // I_Instrument implementation
   virtual bool Init();
-  virtual bool Start(int channel, unsigned char note,
-                     InstrumentStartMode mode = InstrumentStartMode::NewNote);
+  virtual bool Start(int channel, unsigned char note, bool trigger = true);
   virtual void Stop(int channel);
   virtual bool Render(int channel, AudioSample *buffer, int size,
                       bool updateTick) override;

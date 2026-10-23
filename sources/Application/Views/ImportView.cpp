@@ -184,8 +184,6 @@ ImportView::~ImportView() {}
 void ImportView::Reset() {
   topIndex_ = 0;
   currentIndex_ = 0;
-  savedImportTopIndex_ = 0;
-  savedImportIndex_ = 0;
   previewPlayingIndex_ = 0;
   selectedButton_ = 0;
   toInstr_ = 0;
@@ -301,10 +299,7 @@ void ImportView::ProcessButtonMask(unsigned short mask, bool pressed) {
       // toggle from sdcard "import sample" & project pool listing
       if (inProjectSampleDir_) {
         inProjectSampleDir_ = false;
-        const char *importDir = viewData_->importViewStartDir.empty()
-                                    ? SAMPLES_LIB_DIR
-                                    : viewData_->importViewStartDir.c_str();
-        setCurrentFolder(fs, importDir, ImportView::FolderNav::ResumeImport);
+        setCurrentFolder(fs, SAMPLES_LIB_DIR, ImportView::FolderNav::Jump);
       } else {
         FileSystemPath::PathString projectSamplesDir;
         char projectName[MAX_PROJECT_NAME_LENGTH + 1] = {};
@@ -314,8 +309,6 @@ void ImportView::ProcessButtonMask(unsigned short mask, bool pressed) {
           Trace::Error("PICOIMPORT: Failed to build project samples dir");
           return;
         }
-        savedImportIndex_ = currentIndex_;
-        savedImportTopIndex_ = topIndex_;
         inProjectSampleDir_ = true;
         setCurrentFolder(fs, projectSamplesDir.c_str(),
                          ImportView::FolderNav::Jump);
@@ -724,13 +717,6 @@ void ImportView::OnFocus() {
 
   toInstr_ = viewData_->currentInstrumentID_;
 
-  const bool enteringProjectPool =
-      viewData_->isShowingSampleEditorProjectPool && !inProjectSampleDir_;
-  if (enteringProjectPool) {
-    savedImportIndex_ = currentIndex_;
-    savedImportTopIndex_ = topIndex_;
-  }
-
   inProjectSampleDir_ = viewData_->isShowingSampleEditorProjectPool;
 
   if (inProjectSampleDir_) {
@@ -1125,9 +1111,6 @@ void ImportView::setCurrentFolder(FileSystem *fs, const char *name,
     // The project pool listing has no subdirectory navigation, so there is
     // nothing to remember or restore.
     currentIndex_ = 0;
-  } else if (nav == FolderNav::ResumeImport) {
-    currentIndex_ = savedImportIndex_;
-    topIndex_ = savedImportTopIndex_;
   } else if (nav == FolderNav::Up) {
     // Going up: restore the selection position we had in the parent dir.
     if (dirIndexDepth_ > 0) {

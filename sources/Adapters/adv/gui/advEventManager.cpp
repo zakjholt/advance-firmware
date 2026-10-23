@@ -524,9 +524,17 @@ void ProcessEvent(void *) {
 
 void USBDevice(void *) {
   UsbRoleSwitchController controller = makeUsbRoleSwitchController();
+  MidiService *midiService = MidiService::GetInstance();
   for (;;) {
     serviceUsbRoleSwitchController(controller);
     handleUSBInterrupts();
+
+    // Poll MIDI immediately after servicing TinyUSB. This drains USB-device
+    // packets and timestamped TRS bytes at the USB task's roughly 1 ms cadence
+    // instead of batching them in the slower serial/UI task.
+    if (midiService != nullptr) {
+      static_cast<advMidiService *>(midiService)->poll();
+    }
     pumpUSBMidiTxQueue();
   }
 }
@@ -630,7 +638,6 @@ void advEventManager::PostQuitMessage() {
 int advEventManager::GetKeyCode(const char *name) { return -1; }
 
 void advEventManager::ProcessSerialInputEvent(void *) {
-  MidiService *midiService = MidiService::GetInstance();
   bool remoteUIConnected = false;
   for (;;) {
 #ifdef SERIAL_REPL
@@ -657,13 +664,6 @@ void advEventManager::ProcessSerialInputEvent(void *) {
       xQueueSend(eventQueue, &ev, 0);
     }
 
-    // Poll MIDI service to process any pending MIDI messages
-    if (midiService) {
-      advMidiService *ptMidiService = (advMidiService *)midiService;
-      if (ptMidiService) {
-        ptMidiService->poll();
-      }
-    }
     vTaskDelay(pdMS_TO_TICKS(50)); // process at approx 20Hz
   }
 }

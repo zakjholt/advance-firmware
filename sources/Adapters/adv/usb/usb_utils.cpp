@@ -159,13 +159,15 @@ void updateUsbHostEnumerationTimeoutState() {
 }
 
 void selectHostMidiInterface(uint8_t idx, uint8_t interfaceNumber) {
-  if (g_hostMidiMounted && (g_hostMidiIdx != kInvalidHostMidiIdx) &&
-      (g_hostMidiIdx != idx)) {
+  if (g_hostMidiMounted && g_hostMidiIdx != kInvalidHostMidiIdx &&
+      g_hostMidiIdx != idx) {
     tuh_itf_info_t currentInfo{};
-    if (tuh_midi_itf_get_info(g_hostMidiIdx, &currentInfo)) {
-      if (currentInfo.desc.bInterfaceNumber >= interfaceNumber) {
-        return;
-      }
+    const bool haveCurrentInfo =
+        tuh_midi_itf_get_info(g_hostMidiIdx, &currentInfo);
+    const uint8_t currentInterfaceNumber =
+        haveCurrentInfo ? currentInfo.desc.bInterfaceNumber : 0xFF;
+    if (currentInterfaceNumber >= interfaceNumber) {
+      return;
     }
   }
 
@@ -421,25 +423,6 @@ extern "C" void tuh_mount_cb(uint8_t daddr) {
 extern "C" void tuh_midi_umount_cb(uint8_t idx) {
   if (idx == g_hostMidiIdx) {
     resetHostMidiSelection();
-    for (uint8_t otherIdx = 0; otherIdx < CFG_TUH_MIDI; ++otherIdx) {
-      if ((otherIdx != idx) && tuh_midi_mounted(otherIdx)) {
-        tuh_itf_info_t itfInfo{};
-        uint8_t interfaceNumber = 0xFF;
-        if (tuh_midi_itf_get_info(otherIdx, &itfInfo)) {
-          interfaceNumber = itfInfo.desc.bInterfaceNumber;
-        }
-        selectHostMidiInterface(otherIdx, interfaceNumber);
-        uint16_t vendorId = 0;
-        uint16_t productId = 0;
-        (void)tuh_vid_pid_get(itfInfo.daddr, &vendorId, &productId);
-        g_hostMidiVendorId = vendorId;
-        g_hostMidiProductId = productId;
-        g_hostMidiIsApcMiniMk2 = isApcMiniMk2(vendorId, productId);
-        configureHostMidiCables(tuh_midi_get_rx_cable_count(otherIdx),
-                                tuh_midi_get_tx_cable_count(otherIdx));
-        break;
-      }
-    }
     g_pendingValid = false;
     g_pendingOffset = 0;
     refreshControlSurfaceSelection();
@@ -469,7 +452,7 @@ void suppressDwc2OtgInt() {
 
 extern "C" void tuh_midi_rx_cb(uint8_t idx, uint32_t xferred_bytes) {
   (void)xferred_bytes;
-  if (!tuh_midi_mounted(idx)) {
+  if (!g_hostMidiMounted || (idx != g_hostMidiIdx)) {
     return;
   }
 

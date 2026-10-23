@@ -58,6 +58,10 @@ void MidiService::registerControlSurfaceInputs(IControlSurface &surface) {
   (void)surface;
 }
 
+void MidiService::OnMidiClock(uint32_t timestampUs) { (void)timestampUs; }
+
+bool MidiService::IsMidiClockInputEnabled() const { return false; }
+
 void MidiService::SendControlSurfaceRawImmediate(const uint8_t *data,
                                                  uint8_t len) {
   (void)data;

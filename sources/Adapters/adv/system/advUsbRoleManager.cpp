@@ -7,8 +7,8 @@
  */
 
 #include "advUsbRoleManager.h"
-#include "Adapters/adv/system/i2cTransfer.h"
 #include "System/Console/Trace.h"
+#include "i2c.h"
 #include "main.h"
 #include "tim.h"
 
@@ -83,8 +83,8 @@ AdvUsbRoleManagerState g_state = {
 
 bool readRegister(uint8_t reg, uint8_t &value) {
   const HAL_StatusTypeDef status =
-      AdvI2C_Mem_Read(&hi2c4, kFusb303I2cAddress, reg, I2C_MEMADD_SIZE_8BIT,
-                      &value, 1, I2C_TRANSFER_TIMEOUT_MS);
+      HAL_I2C_Mem_Read(&hi2c4, kFusb303I2cAddress, reg, I2C_MEMADD_SIZE_8BIT,
+                       &value, 1, I2C_TRANSFER_TIMEOUT_MS);
   if (status != HAL_OK) {
     Trace::Error("USBROLE: i2c read failed reg=0x%02x status=%u error=0x%08lx",
                  reg, static_cast<uint32_t>(status),
@@ -97,8 +97,8 @@ bool readRegister(uint8_t reg, uint8_t &value) {
 
 bool writeRegister(uint8_t reg, uint8_t value) {
   const HAL_StatusTypeDef status =
-      AdvI2C_Mem_Write(&hi2c4, kFusb303I2cAddress, reg, I2C_MEMADD_SIZE_8BIT,
-                       &value, 1, I2C_TRANSFER_TIMEOUT_MS);
+      HAL_I2C_Mem_Write(&hi2c4, kFusb303I2cAddress, reg, I2C_MEMADD_SIZE_8BIT,
+                        &value, 1, I2C_TRANSFER_TIMEOUT_MS);
   if (status != HAL_OK) {
     Trace::Error("USBROLE: i2c write failed reg=0x%02x value=0x%02x status=%u "
                  "error=0x%08lx",

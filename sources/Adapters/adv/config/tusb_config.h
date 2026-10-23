@@ -64,8 +64,6 @@ extern "C" {
 //--------------------------------------------------------------------
 // HOST CONFIGURATION
 //--------------------------------------------------------------------
-#define CFG_TUH_ENUMERATION_BUFSIZE 1024
-#define CFG_TUH_INTERFACE_MAX 16
 #define CFG_TUH_DEVICE_MAX 4
 #define CFG_TUH_CDC 0
 #define CFG_TUH_HID 0

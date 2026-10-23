@@ -75,10 +75,6 @@ When in the wave sample File Browser, use the arrow keys <span class="minikeys">
 
 The state is backed up anytime you hold the power button for 3 seconds to power off the Advance.
 
-The current state of your project is also backed up automatically every 60 seconds.
-
-{% callout type=warn %}
-If your Advance ever freezes or crashes, press and hold the **power button** for approximately **8 seconds** to force it to reboot. When you restart, the Advance automatically recovers to the last backup point, so you will lose at most 60 seconds of changes made since you last used the `Save` action field on the Project Screen. If the Advance does not boot normally afterwards, force it into _bootloader_ mode with the boot button as described in [Updating Firmware](device.html#updating-firmware).
-{% endcallout %}
+The current state of your project is also backed up automatically every 60 seconds. Should the Advance ever crash or you force a reboot (by holding the power button for approximately 8 seconds) without first using the `Save` action field on the Project Screen you will automatically recover to the last backup point when you restart the Advance and so lose at most 60 seconds of prior changes.
 
 If you ever wish to reset back to the last state of your project that you **explicitly** saved, you can open your current project via the Project screen Project `Open` action field and select in the browser the **current** project to be re-opened.

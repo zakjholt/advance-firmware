@@ -921,7 +921,7 @@ unsigned char SampleSourceInstrument::GetPreviewNote() {
 }
 
 bool SampleSourceInstrument::Start(int channel, unsigned char midinote,
-                                   InstrumentStartMode mode) {
+                                   bool cleanstart) {
   if (dirty_) {
     updateInstrumentData(false);
   }
@@ -932,8 +932,7 @@ bool SampleSourceInstrument::Start(int channel, unsigned char midinote,
   }
 
   sampleSourceRenderParams *rp = renderParams_ + channel;
-  const bool resumePosition =
-      mode == InstrumentStartMode::TiedNote && !rp->finished_;
+  const bool resumePosition = (!cleanstart) && (!rp->finished_);
   rp->midiNote_ = midinote;
 
   rp->sampleBuffer_ = source_->GetSampleBuffer(rp->midiNote_);
@@ -1129,7 +1128,7 @@ bool SampleSourceInstrument::Start(int channel, unsigned char midinote,
 #endif
   resetDeclickState(*rp);
 
-  if (mode == InstrumentStartMode::NewNote) {
+  if (cleanstart) {
     rp->retrigger_.Reset();
     rp->couldClick_ = kShouldKillClicks;
   }

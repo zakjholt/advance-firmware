@@ -75,6 +75,12 @@ DeviceView::DeviceView(GUIWindow &w, ViewData *data) : FieldView(w, data) {
   fieldList_.insert(fieldList_.end(), &(*intVarField_.rbegin()));
   (*intVarField_.rbegin()).AddObserver(*this);
 
+  position._y += 1;
+  v = config->FindVariable(FourCC::VarMidiClockSync);
+  intVarField_.emplace_back(position, *v, "Clock in: %s", 0, 1, 1, 1);
+  fieldList_.insert(fieldList_.end(), &(*intVarField_.rbegin()));
+  (*intVarField_.rbegin()).AddObserver(*this);
+
   position._y += 2;
   v = config->FindVariable(FourCC::VarRemoteUI);
   intVarField_.emplace_back(position, *v, "Remote UI: %s", 0, 1, 1, 1);
@@ -121,8 +127,8 @@ DeviceView::DeviceView(GUIWindow &w, ViewData *data) : FieldView(w, data) {
   fieldList_.insert(fieldList_.end(), &(*actionField_.rbegin()));
   (*actionField_.rbegin()).AddObserver(*this);
 
-  // y=17 -> y=20, just above Battery health (y=21)
-  position._y += 3;
+  // y=18 -> y=20, just above Battery health (y=21)
+  position._y += 2;
   actionField_.emplace_back("Credits", FourCC::ActionShowCredits, position);
   fieldList_.insert(fieldList_.end(), &(*actionField_.rbegin()));
   (*actionField_.rbegin()).AddObserver(*this);
@@ -263,6 +269,7 @@ void DeviceView::Update(Observable &, I_ObservableData *data) {
   case FourCC::VarMidiInputDevice:
   case FourCC::VarMidiControlSurface:
   case FourCC::VarMidiSync:
+  case FourCC::VarMidiClockSync:
   case FourCC::VarRemoteUI:
   case FourCC::VarInstrumentAudition:
   case FourCC::VarImportResampler: {

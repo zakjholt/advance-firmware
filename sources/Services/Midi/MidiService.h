@@ -18,6 +18,8 @@
 #include "ControlSurface/ApcMiniMk2Surface.h"
 #include "ControlSurface/IControlSurface.h"
 #include "ControlSurface/LaunchpadMiniMk3Surface.h"
+#include "Externals/etl/include/etl/atomic.h"
+#include "Externals/etl/include/etl/queue_spsc_atomic.h"
 #include "Externals/etl/include/etl/vector.h"
 #include "Foundation/Observable.h"
 #include "Foundation/T_Factory.h"
@@ -64,7 +66,8 @@ public:
   //! Handle MIDI transport messages
   void OnMidiStart();
   void OnMidiStop();
-  void OnMidiClock();
+  void OnMidiClock(uint32_t timestampUs);
+  bool IsMidiClockInputEnabled() const;
   void RefreshControlSurfaceSelection();
   void ReloadControlSurface();
   void LoadProjectSettings(const Project &project);
@@ -101,6 +104,7 @@ private:
   bool isUsbOutReservedForControlSurface(const MidiOutDevice *dev) const;
   bool isMessageAllowedWhileUsbReservedForControlSurface(
       MidiOutDevice *dev, const MidiMessage &message) const;
+  void setMidiClockInputEnabled(bool enabled);
 
 private:
   uint16_t activeMidiChannelMask_;
@@ -114,6 +118,8 @@ private:
 
   bool started_;
   bool sendSync_;
+  etl::atomic<bool> receiveSync_;
+  etl::queue_spsc_atomic<uint32_t, 32> midiClockTimestamps_;
   UsbHostControlSurfaceType activeDetectedControlSurfaceType_;
   IControlSurface *controlSurface_;
   ApcMiniMk2Surface apcMiniMk2Surface_;

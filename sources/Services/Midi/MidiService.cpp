@@ -31,13 +31,15 @@ constexpr int kControlSurfaceAuto = 1;
 
 MidiService::MidiService()
     : usbControlSurfaceOutDevice_(nullptr), activeMidiChannelMask_(0),
-      started_(false), sendSync_(true),
+      started_(false), sendSync_(true), receiveSync_(false),
       activeDetectedControlSurfaceType_(USB_HOST_CONTROL_SURFACE_NONE),
       controlSurface_(nullptr) {
   for (int i = 0; i < MIDI_MAX_BUFFERS; i++) {
     queues_[i].clear();
   }
   sendSync_ = Config::GetInstance()->GetValue("MIDISYNC") > 0;
+  receiveSync_.store(Config::GetInstance()->GetValue("MIDICLOCKSYNC") > 0,
+                     etl::memory_order_release);
 };
 
 MidiService::~MidiService() { Close(); };
@@ -78,6 +80,11 @@ bool MidiService::Init() {
   midiSyncVar->AddObserver(*this);
   auto sync = midiSyncVar->GetInt();
   sendSync_ = sync != 0;
+
+  auto midiClockSyncVar =
+      (WatchedVariable *)config->FindVariable(FourCC::VarMidiClockSync);
+  midiClockSyncVar->AddObserver(*this);
+  setMidiClockInputEnabled(midiClockSyncVar->GetInt() != 0);
 
   auto midiControlSurfaceVar =
       (WatchedVariable *)config->FindVariable(FourCC::VarMidiControlSurface);
@@ -174,11 +181,28 @@ void MidiService::SendControlSurfaceRawImmediate(const uint8_t *data,
 
 PICOTRACKER_FAST_CODE("midi_service_trigger")
 void MidiService::Trigger() {
+  const bool receiveSync = receiveSync_.load(etl::memory_order_acquire);
+  SyncMaster *syncMaster = SyncMaster::GetInstance();
+  const SyncClockSource requestedClockSource =
+      receiveSync ? SyncClockSource::Midi : SyncClockSource::Internal;
+  if (syncMaster->GetClockSource() != requestedClockSource) {
+    uint32_t discardedTimestampUs = 0;
+    while (midiClockTimestamps_.pop(discardedTimestampUs)) {
+    }
+    syncMaster->SetClockSource(requestedClockSource);
+  }
+
+  uint32_t timestampUs = 0;
+  while (midiClockTimestamps_.pop(timestampUs)) {
+    if (receiveSync) {
+      syncMaster->OnMidiClock(timestampUs);
+    }
+  }
+
   AdvancePlayQueue();
 
   if (!activeOutDevices_.empty() && sendSync_) {
-    SyncMaster *sm = SyncMaster::GetInstance();
-    if (sm->MidiSlice()) {
+    if (syncMaster->MidiSlice()) {
       MidiMessage msg;
       msg.status_ = 0xF8;
       QueueMessage(msg);
@@ -194,11 +218,29 @@ void MidiService::AdvancePlayQueue() {
 }
 
 void MidiService::Update(Observable &o, I_ObservableData *d) {
-  AudioDriver::Event *event = (AudioDriver::Event *)d;
-  if (event->type_ == AudioDriver::Event::ADET_DRIVERTICK) {
-    onAudioTick();
+  // WatchedVariable notifications encode their FourCC in the data pointer.
+  // Check that value before casting the observable because this service also
+  // observes AudioOutDriver events.
+  const uintptr_t notificationId = reinterpret_cast<uintptr_t>(d);
+  const bool isMidiDevice = notificationId == FourCC::VarMidiDevice;
+  const bool isMidiInputDevice = notificationId == FourCC::VarMidiInputDevice;
+  const bool isMidiSync = notificationId == FourCC::VarMidiSync;
+  const bool isMidiClockSync = notificationId == FourCC::VarMidiClockSync;
+  const bool isMidiControlSurface =
+      notificationId == FourCC::VarMidiControlSurface;
+
+  if (!isMidiDevice && !isMidiInputDevice && !isMidiSync && !isMidiClockSync &&
+      !isMidiControlSurface) {
+    if (d != nullptr) {
+      AudioDriver::Event *event = static_cast<AudioDriver::Event *>(d);
+      if (event->type_ == AudioDriver::Event::ADET_DRIVERTICK) {
+        onAudioTick();
+      }
+    }
+    return;
   }
-  WatchedVariable &v = (WatchedVariable &)o;
+
+  WatchedVariable &v = static_cast<WatchedVariable &>(o);
   switch (v.GetID()) {
     // need braces inside case statements due to:
     // https://stackoverflow.com/a/11578973/85472
@@ -219,6 +261,9 @@ void MidiService::Update(Observable &o, I_ObservableData *d) {
   case FourCC::VarMidiSync: {
     auto sync = v.GetInt();
     sendSync_ = sync != 0;
+  } break;
+  case FourCC::VarMidiClockSync: {
+    setMidiClockInputEnabled(v.GetInt() != 0);
   } break;
   case FourCC::VarMidiControlSurface: {
     activeDetectedControlSurfaceType_ = USB_HOST_CONTROL_SURFACE_NONE;
@@ -243,9 +288,18 @@ void MidiService::OnMidiStop() {
   Player::GetInstance()->Stop();
 }
 
-void MidiService::OnMidiClock() {
-  // Handle MIDI clock messages if needed
-  // This could be used for tempo synchronization
+void MidiService::OnMidiClock(uint32_t timestampUs) {
+  if (receiveSync_.load(etl::memory_order_acquire)) {
+    (void)midiClockTimestamps_.push(timestampUs);
+  }
+}
+
+bool MidiService::IsMidiClockInputEnabled() const {
+  return receiveSync_.load(etl::memory_order_acquire);
+}
+
+void MidiService::setMidiClockInputEnabled(bool enabled) {
+  receiveSync_.store(enabled, etl::memory_order_release);
 }
 
 void MidiService::RefreshControlSurfaceSelection() {

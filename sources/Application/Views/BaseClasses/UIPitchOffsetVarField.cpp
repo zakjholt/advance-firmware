@@ -26,8 +26,11 @@ void UIPitchOffsetVarField::Draw(GUIWindow &window, int offset) {
   const auto value =
       UIPitchOffsetVarFieldDetail::FormatPitchOffsetCents(src_.GetInt());
   char buffer[UIPitchOffsetVarFieldDetail::DisplayWidth + 1];
-  memcpy(buffer, value.c_str(), value.size());
-  buffer[value.size()] = '\0';
+  memset(buffer, ' ', UIPitchOffsetVarFieldDetail::DisplayWidth);
+  const size_t padding =
+      UIPitchOffsetVarFieldDetail::DisplayWidth - value.size();
+  memcpy(buffer + padding, value.c_str(), value.size());
+  buffer[UIPitchOffsetVarFieldDetail::DisplayWidth] = '\0';
 
   if (focus_) {
     static_cast<AppWindow &>(window).SetColor(CD_HILITE2);

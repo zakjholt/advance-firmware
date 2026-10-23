@@ -10,8 +10,8 @@
  * Previously granted BSD permissions are preserved. See LICENSING.md.
  */
 #include "tlv320aic3204.h"
-#include "Adapters/adv/system/i2cTransfer.h"
 #include "gpio.h"
+#include "i2c.h"
 #include "stm32h7xx_hal.h"
 #include "tim.h"
 #include <math.h>
@@ -47,8 +47,8 @@ static bool codecInitialized = false;
 
 HAL_StatusTypeDef tlv320write(uint16_t reg, uint8_t value) {
   // Write to the register
-  return AdvI2C_Mem_Write(&I2C, CODEC_ADDR, reg, I2C_MEMADD_SIZE_8BIT, &value,
-                          1, I2C_TRANSFER_TIMEOUT_MS);
+  return HAL_I2C_Mem_Write(&I2C, CODEC_ADDR, reg, I2C_MEMADD_SIZE_8BIT, &value,
+                           1, I2C_TRANSFER_TIMEOUT_MS);
 }
 
 HAL_StatusTypeDef tlv320writepage(uint16_t page, uint16_t reg, uint8_t value) {
@@ -67,14 +67,14 @@ HAL_StatusTypeDef tlv320writepage(uint16_t page, uint16_t reg, uint8_t value) {
 HAL_StatusTypeDef tlv320read(uint8_t page, uint8_t reg, uint8_t *value) {
   HAL_StatusTypeDef status;
   // Select the page
-  status = AdvI2C_Mem_Write(&I2C, CODEC_ADDR, 0x00, I2C_MEMADD_SIZE_8BIT, &page,
-                            1, I2C_TRANSFER_TIMEOUT_MS);
+  status = HAL_I2C_Mem_Write(&I2C, CODEC_ADDR, 0x00, I2C_MEMADD_SIZE_8BIT,
+                             &page, 1, I2C_TRANSFER_TIMEOUT_MS);
   if (status != HAL_OK)
     return status; // Return error if page selection fails
 
   // Read from the register
-  status = AdvI2C_Mem_Read(&I2C, CODEC_ADDR, reg, I2C_MEMADD_SIZE_8BIT, value,
-                           1, I2C_TRANSFER_TIMEOUT_MS);
+  status = HAL_I2C_Mem_Read(&I2C, CODEC_ADDR, reg, I2C_MEMADD_SIZE_8BIT, value,
+                            1, I2C_TRANSFER_TIMEOUT_MS);
 
   return status;
 }

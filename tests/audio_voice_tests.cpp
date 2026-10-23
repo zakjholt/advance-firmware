@@ -98,11 +98,10 @@ public:
 
   bool Init() override { return true; }
 
-  bool Start(int channel, unsigned char note,
-             InstrumentStartMode mode = InstrumentStartMode::NewNote) override {
+  bool Start(int channel, unsigned char note, bool retrigger) override {
     (void)channel;
     (void)note;
-    lastRetrigger_ = mode != InstrumentStartMode::TiedNote;
+    lastRetrigger_ = retrigger;
     startCount_++;
     active_ = startResult_;
     return startResult_;
@@ -208,7 +207,6 @@ public:
   int StartCount() const { return startCount_; }
   int StopCount() const { return stopCount_; }
   bool LastRetrigger() const { return lastRetrigger_; }
-  void FailStart() { startResult_ = false; }
   float PitchMultiplier() const { return pitchMultiplier_; }
   int PitchSetCount() const { return pitchSetCount_; }
   int RenderCallCount() const { return renderCallCount_; }
@@ -549,7 +547,7 @@ AudioSample renderFilterTypeEnergy(int filterType, bool alternating) {
   instrument.VoiceVar(FourCC::VoiceFilterType)->SetInt(filterType, false);
 
   AudioVoice voice(0);
-  if (!voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote)) {
+  if (!voice.StartInstrument(&instrument, 60, true)) {
     return 0.0f;
   }
 
@@ -571,7 +569,7 @@ TEST_CASE("AudioVoice open-path stays close to source audio after startup") {
   instrument.SetSignal(pcmToAudioSample(12000), pcmToAudioSample(16000));
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 8> warmup{};
   std::array<AudioSample, 8> buffer{};
@@ -604,7 +602,7 @@ TEST_CASE("AudioVoice pitch commands compose without source command handling") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 48, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 48, true));
   REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandPitchSlide,
                                0x000C));
   REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandPitchFineTune,
@@ -627,7 +625,7 @@ TEST_CASE("AudioVoice reuses a pitch updater when its command is retargeted") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 48, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 48, true));
   REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandPitchSlide,
                                0x040C));
   REQUIRE(voice.pitchCommand_.contributors_.size() == 1);
@@ -653,9 +651,8 @@ TEST_CASE("AudioVoice recomputes pitch from authoritative contributors") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  REQUIRE(
-      voice.StartInstrument(&instrument, 64, InstrumentStartMode::TiedNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
+  REQUIRE(voice.StartInstrument(&instrument, 64, false));
   REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandPitchSlide,
                                0xFF0C));
   REQUIRE(
@@ -706,7 +703,7 @@ TEST_CASE("AudioVoice divides a sequencer slice into eight pitch updates") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 48, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 48, true));
   REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandPitchSlide,
                                0xFF0C));
   CHECK(voice.pitchCommand_.pitchSlide_.stepsRemaining_ ==
@@ -743,7 +740,7 @@ TEST_CASE("AudioVoice source subdivisions follow tempo") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 48, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 48, true));
   REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandPitchSlide,
                                0xFF0C));
   instrument.ClearPitchRenderHistory();
@@ -774,9 +771,8 @@ TEST_CASE("AudioVoice reaches a pitch target between subdivision boundaries") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  REQUIRE(
-      voice.StartInstrument(&instrument, 48, InstrumentStartMode::TiedNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
+  REQUIRE(voice.StartInstrument(&instrument, 48, false));
   REQUIRE(
       voice.ProcessCommand(TrackerCommand::InstrumentCommandLegato, 0x01A5));
   instrument.ClearPitchRenderHistory();
@@ -822,10 +818,9 @@ TEST_CASE("AudioVoice preserves audio before a later source chunk finishes") {
 
   AudioVoice finishingVoice(0);
   AudioVoice silenceReferenceVoice(1);
-  REQUIRE(finishingVoice.StartInstrument(&finishingInstrument, 48,
-                                         InstrumentStartMode::NewNote));
+  REQUIRE(finishingVoice.StartInstrument(&finishingInstrument, 48, true));
   REQUIRE(silenceReferenceVoice.StartInstrument(&silenceReferenceInstrument, 48,
-                                                InstrumentStartMode::NewNote));
+                                                true));
   REQUIRE(finishingVoice.ProcessCommand(
       TrackerCommand::InstrumentCommandPitchSlide, 0x040C));
   REQUIRE(silenceReferenceVoice.ProcessCommand(
@@ -861,7 +856,7 @@ TEST_CASE("AudioVoice renders an unmodulated source in one call") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 48, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 48, true));
   instrument.ClearPitchRenderHistory();
 
   std::array<AudioSample, 500> buffer{};
@@ -877,7 +872,7 @@ TEST_CASE("AudioVoice does not reapply an unchanged source pitch") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 48, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 48, true));
   instrument.ClearPitchRenderHistory();
 
   std::array<AudioSample, 8> buffer{};
@@ -893,9 +888,8 @@ TEST_CASE("AudioVoice LEG derives its interval from tied notes") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  REQUIRE(
-      voice.StartInstrument(&instrument, 64, InstrumentStartMode::TiedNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
+  REQUIRE(voice.StartInstrument(&instrument, 64, false));
   REQUIRE(
       voice.ProcessCommand(TrackerCommand::InstrumentCommandLegato, 0x10A5));
 
@@ -919,14 +913,10 @@ TEST_CASE("AudioVoice LEG ignores its low byte") {
   AudioVoice firstVoice(0);
   AudioVoice secondVoice(1);
 
-  REQUIRE(firstVoice.StartInstrument(&firstInstrument, 60,
-                                     InstrumentStartMode::NewNote));
-  REQUIRE(firstVoice.StartInstrument(&firstInstrument, 67,
-                                     InstrumentStartMode::TiedNote));
-  REQUIRE(secondVoice.StartInstrument(&secondInstrument, 60,
-                                      InstrumentStartMode::NewNote));
-  REQUIRE(secondVoice.StartInstrument(&secondInstrument, 67,
-                                      InstrumentStartMode::TiedNote));
+  REQUIRE(firstVoice.StartInstrument(&firstInstrument, 60, true));
+  REQUIRE(firstVoice.StartInstrument(&firstInstrument, 67, false));
+  REQUIRE(secondVoice.StartInstrument(&secondInstrument, 60, true));
+  REQUIRE(secondVoice.StartInstrument(&secondInstrument, 67, false));
 
   REQUIRE(firstVoice.ProcessCommand(TrackerCommand::InstrumentCommandLegato,
                                     0x1000));
@@ -946,9 +936,8 @@ TEST_CASE("AudioVoice LEG retargets from the currently sounding pitch") {
   instrument.SetSignal(0.5f, 0.5f);
   AudioVoice voice(0);
 
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  REQUIRE(
-      voice.StartInstrument(&instrument, 64, InstrumentStartMode::TiedNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
+  REQUIRE(voice.StartInstrument(&instrument, 64, false));
   REQUIRE(
       voice.ProcessCommand(TrackerCommand::InstrumentCommandLegato, 0x1000));
 
@@ -958,8 +947,7 @@ TEST_CASE("AudioVoice LEG retargets from the currently sounding pitch") {
   REQUIRE(voice.pitchCommand_.legato_.active_);
   const float precedingLegatoRatio = voice.pitchCommand_.legato_.current_;
 
-  REQUIRE(
-      voice.StartInstrument(&instrument, 67, InstrumentStartMode::TiedNote));
+  REQUIRE(voice.StartInstrument(&instrument, 67, false));
   REQUIRE(
       voice.ProcessCommand(TrackerCommand::InstrumentCommandLegato, 0x1000));
 
@@ -977,19 +965,17 @@ TEST_CASE("AudioVoice tied note without LEG cancels an unfinished LEG") {
   instrument.SetSignal(0.5f, 0.5f);
   AudioVoice voice(0);
 
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
   REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandPitchSlide,
                                0x000C));
-  REQUIRE(
-      voice.StartInstrument(&instrument, 64, InstrumentStartMode::TiedNote));
+  REQUIRE(voice.StartInstrument(&instrument, 64, false));
   REQUIRE(
       voice.ProcessCommand(TrackerCommand::InstrumentCommandLegato, 0x1000));
 
   voice.advancePitchRamps(AudioVoice::commandSpeedDurationSteps(16.0f) * 0.5f);
   REQUIRE(voice.pitchCommand_.legato_.active_);
 
-  REQUIRE(
-      voice.StartInstrument(&instrument, 67, InstrumentStartMode::TiedNote));
+  REQUIRE(voice.StartInstrument(&instrument, 67, false));
   std::array<AudioSample, 2> buffer{};
   REQUIRE(voice.Render(buffer.data(), 1, false));
 
@@ -1007,13 +993,12 @@ TEST_CASE("AudioVoice LEG does nothing without a current tied note") {
   instrument.SetSignal(0.5f, 0.5f);
   AudioVoice voice(0);
 
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
   REQUIRE(
       voice.ProcessCommand(TrackerCommand::InstrumentCommandLegato, 0x10FF));
   CHECK(voice.pitchCommand_.contributors_.empty());
 
-  REQUIRE(
-      voice.StartInstrument(&instrument, 64, InstrumentStartMode::TiedNote));
+  REQUIRE(voice.StartInstrument(&instrument, 64, false));
   std::array<AudioSample, 2> buffer{};
   REQUIRE(voice.Render(buffer.data(), 1, false));
   REQUIRE(
@@ -1028,7 +1013,7 @@ TEST_CASE("AudioVoice PSL speed unit is one sequencer slice") {
     StubInstrument instrument;
     instrument.SetSignal(0.5f, 0.5f);
     AudioVoice voice(0);
-    if (!voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote) ||
+    if (!voice.StartInstrument(&instrument, 60, true) ||
         !voice.ProcessCommand(TrackerCommand::InstrumentCommandPitchSlide,
                               commandValue)) {
       return -1;
@@ -1063,9 +1048,8 @@ TEST_CASE("AudioVoice LEG shares the PSL duration range") {
     StubInstrument instrument;
     instrument.SetSignal(0.5f, 0.5f);
     AudioVoice voice(0);
-    if (!voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote) ||
-        !voice.StartInstrument(&instrument, destinationNote,
-                               InstrumentStartMode::TiedNote) ||
+    if (!voice.StartInstrument(&instrument, 60, true) ||
+        !voice.StartInstrument(&instrument, destinationNote, false) ||
         !voice.ProcessCommand(TrackerCommand::InstrumentCommandLegato,
                               static_cast<uint16_t>(0xFF00 | unusedLowByte))) {
       return -1;
@@ -1099,7 +1083,7 @@ TEST_CASE("AudioVoice PFT shares the PSL duration range") {
     StubInstrument instrument;
     instrument.SetSignal(0.5f, 0.5f);
     AudioVoice voice(0);
-    if (!voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote) ||
+    if (!voice.StartInstrument(&instrument, 60, true) ||
         !voice.ProcessCommand(TrackerCommand::InstrumentCommandPitchFineTune,
                               commandValue)) {
       return -1;
@@ -1131,14 +1115,14 @@ TEST_CASE("AudioVoice pitch state resets on a clean note") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 48, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 48, true));
   REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandPitchFineTune,
                                0x0040));
   std::array<AudioSample, 2> buffer{};
   REQUIRE(voice.Render(buffer.data(), 1, false));
   CHECK(instrument.PitchMultiplier() > 1.0f);
 
-  REQUIRE(voice.StartInstrument(&instrument, 48, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 48, true));
   CHECK(instrument.PitchMultiplier() == doctest::Approx(1.0f));
   CHECK_FALSE(voice.pitchCommand_.fineTune_.active_);
   CHECK(voice.pitchCommand_.fineTune_.current_ == doctest::Approx(1.0f));
@@ -1149,7 +1133,7 @@ TEST_CASE("AudioVoice leaves RTG handling to its attached source") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
   CHECK_FALSE(
       voice.ProcessCommand(TrackerCommand::InstrumentCommandRetrigger, 0x0001));
 
@@ -1167,7 +1151,7 @@ TEST_CASE("AudioVoice volume command applies per-voice amp override") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 8> baseline{};
   REQUIRE(voice.Render(baseline.data(), 4, false));
@@ -1197,7 +1181,7 @@ TEST_CASE("AudioVoice volume ramp advances only between render buffers") {
   instrument.VoiceVar(FourCC::VoiceAmpRelease)->SetInt(0, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 48> baseline{};
   REQUIRE(voice.Render(baseline.data(), 24, false));
@@ -1234,7 +1218,7 @@ TEST_CASE("AudioVoice value ramps use sequencer-slice speed units") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   REQUIRE(
       voice.ProcessCommand(TrackerCommand::InstrumentCommandVolume, 0x0100));
@@ -1272,9 +1256,9 @@ TEST_CASE("AudioVoice value ramps retain slice duration when tempo changes") {
   AudioVoice beforeTempoChange(0);
   AudioVoice afterTempoChange(1);
   REQUIRE(beforeTempoChange.StartInstrument(&beforeTempoChangeInstrument, 60,
-                                            InstrumentStartMode::NewNote));
-  REQUIRE(afterTempoChange.StartInstrument(&afterTempoChangeInstrument, 60,
-                                           InstrumentStartMode::NewNote));
+                                            true));
+  REQUIRE(
+      afterTempoChange.StartInstrument(&afterTempoChangeInstrument, 60, true));
 
   auto startValueRamps = [](AudioVoice &voice) {
     REQUIRE(
@@ -1338,7 +1322,7 @@ TEST_CASE("AudioVoice pan command applies per-voice pan override") {
   instrument.SetAudioBufferLayout(AudioBufferLayout::MonoPacked);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandPan, 0x0000));
 
@@ -1358,7 +1342,7 @@ TEST_CASE("AudioVoice filter commands apply per-voice cutoff overrides") {
   instrument.SetSignal(0.5f, 0.5f);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandLowPassFilter,
                                0x1030));
@@ -1514,10 +1498,8 @@ TEST_CASE("AudioVoice insert bitcrush quantizes the rendered signal") {
 
   AudioVoice dryVoice(0);
   AudioVoice crushVoice(1);
-  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60,
-                                   InstrumentStartMode::NewNote));
-  REQUIRE(crushVoice.StartInstrument(&crushInstrument, 60,
-                                     InstrumentStartMode::NewNote));
+  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60, true));
+  REQUIRE(crushVoice.StartInstrument(&crushInstrument, 60, true));
 
   std::array<AudioSample, 4> dryWarmup{};
   std::array<AudioSample, 4> crushWarmup{};
@@ -1553,10 +1535,8 @@ TEST_CASE("AudioVoice second insert slot resolves and applies bitcrush") {
 
   AudioVoice dryVoice(0);
   AudioVoice crushVoice(1);
-  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60,
-                                   InstrumentStartMode::NewNote));
-  REQUIRE(crushVoice.StartInstrument(&crushInstrument, 60,
-                                     InstrumentStartMode::NewNote));
+  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60, true));
+  REQUIRE(crushVoice.StartInstrument(&crushInstrument, 60, true));
 
   CHECK(effectShortName(crushVoice.insertEffectSlots_[0].GetEffect()) ==
         doctest::String("PAS"));
@@ -1591,10 +1571,8 @@ TEST_CASE("AudioVoice updates second insert slot selection without retrigger") {
 
   AudioVoice dryVoice(0);
   AudioVoice crushVoice(1);
-  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60,
-                                   InstrumentStartMode::NewNote));
-  REQUIRE(crushVoice.StartInstrument(&crushInstrument, 60,
-                                     InstrumentStartMode::NewNote));
+  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60, true));
+  REQUIRE(crushVoice.StartInstrument(&crushInstrument, 60, true));
   CHECK(effectShortName(crushVoice.insertEffectSlots_[1].GetEffect()) ==
         doctest::String("PAS"));
 
@@ -1637,7 +1615,7 @@ TEST_CASE("AudioVoice updates insert amount without retrigger") {
       ->SetInt(kVoiceInsertPositionPost, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 4> lowAmountBuffer{};
   REQUIRE(voice.Render(lowAmountBuffer.data(), 2, false));
@@ -1670,10 +1648,8 @@ TEST_CASE("AudioVoice second insert slot resolves and applies downsample") {
 
   AudioVoice dryVoice(0);
   AudioVoice effectedVoice(1);
-  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60,
-                                   InstrumentStartMode::NewNote));
-  REQUIRE(effectedVoice.StartInstrument(&effectedInstrument, 60,
-                                        InstrumentStartMode::NewNote));
+  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60, true));
+  REQUIRE(effectedVoice.StartInstrument(&effectedInstrument, 60, true));
 
   CHECK(effectShortName(effectedVoice.insertEffectSlots_[1].GetEffect()) ==
         doctest::String("DSP"));
@@ -1703,10 +1679,8 @@ TEST_CASE("AudioVoice overdrive insert matches the three-stage curve") {
 
   AudioVoice dryVoice(0);
   AudioVoice driveVoice(1);
-  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60,
-                                   InstrumentStartMode::NewNote));
-  REQUIRE(driveVoice.StartInstrument(&driveInstrument, 60,
-                                     InstrumentStartMode::NewNote));
+  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60, true));
+  REQUIRE(driveVoice.StartInstrument(&driveInstrument, 60, true));
 
   CHECK(effectShortName(driveVoice.insertEffectSlots_[0].GetEffect()) ==
         doctest::String("DRV"));
@@ -1740,10 +1714,8 @@ TEST_CASE("AudioVoice second insert slot resolves and applies overdrive") {
 
   AudioVoice dryVoice(0);
   AudioVoice driveVoice(1);
-  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60,
-                                   InstrumentStartMode::NewNote));
-  REQUIRE(driveVoice.StartInstrument(&driveInstrument, 60,
-                                     InstrumentStartMode::NewNote));
+  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60, true));
+  REQUIRE(driveVoice.StartInstrument(&driveInstrument, 60, true));
 
   CHECK(effectShortName(driveVoice.insertEffectSlots_[1].GetEffect()) ==
         doctest::String("DRV"));
@@ -1775,10 +1747,8 @@ TEST_CASE("AudioVoice slew insert limits fast steps") {
 
   AudioVoice dryVoice(0);
   AudioVoice slewVoice(1);
-  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60,
-                                   InstrumentStartMode::NewNote));
-  REQUIRE(slewVoice.StartInstrument(&slewInstrument, 60,
-                                    InstrumentStartMode::NewNote));
+  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60, true));
+  REQUIRE(slewVoice.StartInstrument(&slewInstrument, 60, true));
 
   std::array<AudioSample, 4> dryBuffer{};
   std::array<AudioSample, 4> slewBuffer{};
@@ -1807,10 +1777,8 @@ TEST_CASE("AudioVoice rectify insert flips the negative half-cycle") {
 
   AudioVoice dryVoice(0);
   AudioVoice rectifyVoice(1);
-  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60,
-                                   InstrumentStartMode::NewNote));
-  REQUIRE(rectifyVoice.StartInstrument(&rectifyInstrument, 60,
-                                       InstrumentStartMode::NewNote));
+  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60, true));
+  REQUIRE(rectifyVoice.StartInstrument(&rectifyInstrument, 60, true));
 
   std::array<AudioSample, 4> dryBuffer{};
   std::array<AudioSample, 4> rectifyBuffer{};
@@ -1841,10 +1809,8 @@ TEST_CASE("AudioVoice second insert slot resolves and applies rectify") {
 
   AudioVoice dryVoice(0);
   AudioVoice rectifiedVoice(1);
-  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60,
-                                   InstrumentStartMode::NewNote));
-  REQUIRE(rectifiedVoice.StartInstrument(&rectifiedInstrument, 60,
-                                         InstrumentStartMode::NewNote));
+  REQUIRE(dryVoice.StartInstrument(&dryInstrument, 60, true));
+  REQUIRE(rectifiedVoice.StartInstrument(&rectifiedInstrument, 60, true));
 
   CHECK(effectShortName(rectifiedVoice.insertEffectSlots_[1].GetEffect()) ==
         doctest::String("RCT"));
@@ -1891,10 +1857,8 @@ TEST_CASE("AudioVoice pre insert runs before the filter stages") {
 
   AudioVoice preVoice(0);
   AudioVoice postVoice(1);
-  REQUIRE(preVoice.StartInstrument(&preInstrument, 60,
-                                   InstrumentStartMode::NewNote));
-  REQUIRE(postVoice.StartInstrument(&postInstrument, 60,
-                                    InstrumentStartMode::NewNote));
+  REQUIRE(preVoice.StartInstrument(&preInstrument, 60, true));
+  REQUIRE(postVoice.StartInstrument(&postInstrument, 60, true));
 
   std::array<AudioSample, 4> preBuffer{};
   std::array<AudioSample, 4> postBuffer{};
@@ -1919,7 +1883,7 @@ TEST_CASE("AudioVoice updates insert position without retrigger") {
       ->SetInt(kVoiceInsertPositionPre, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 128> warmup{};
   REQUIRE(voice.Render(warmup.data(), 64, false));
@@ -2006,12 +1970,12 @@ TEST_CASE(
   instrument.VoiceLFOSettings()->SetTriggerMode(0, LFOTriggerMode::FreeRun);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   constexpr float runningPhase = 0.25f;
   voice.lfoBank_.states_[0].phase_ = runningPhase;
 
-  REQUIRE(voice.StartInstrument(&instrument, 64, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 64, true));
 
   CHECK(voice.lfoBank_.states_[0].phase_ == doctest::Approx(runningPhase));
   CHECK(voice.lfoBank_.states_[0].currentValue_ == doctest::Approx(1.0f));
@@ -2025,11 +1989,11 @@ TEST_CASE(
   instrument.VoiceLFOSettings()->SetTriggerMode(0, LFOTriggerMode::Trigger);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   voice.lfoBank_.states_[0].phase_ = 0.25f;
 
-  REQUIRE(voice.StartInstrument(&instrument, 64, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 64, true));
 
   CHECK(voice.lfoBank_.states_[0].phase_ == doctest::Approx(0.0f));
   CHECK(voice.lfoBank_.states_[0].currentValue_ == doctest::Approx(0.0f));
@@ -2197,7 +2161,7 @@ TEST_CASE("AudioVoice legato start keeps the running envelope alive") {
   instrument.VoiceVar(FourCC::VoiceAmpRelease)->SetInt(0, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 2> firstBuffer{};
   std::array<AudioSample, 2> secondBuffer{};
@@ -2206,8 +2170,7 @@ TEST_CASE("AudioVoice legato start keeps the running envelope alive") {
   REQUIRE(voice.Render(secondBuffer.data(), 1, false));
 
   const AudioSample levelBeforeLegato = std::abs(secondBuffer[0]);
-  REQUIRE(
-      voice.StartInstrument(&instrument, 67, InstrumentStartMode::TiedNote));
+  REQUIRE(voice.StartInstrument(&instrument, 67, false));
   CHECK(instrument.StartCount() == 2);
   CHECK(instrument.StopCount() == 0);
   CHECK(instrument.LastRetrigger() == false);
@@ -2271,7 +2234,7 @@ TEST_CASE("AudioVoice amp and pan scale the rendered signal") {
   instrument.VoiceVar(FourCC::VoicePan)->SetInt(0, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 4> buffer{};
   REQUIRE(voice.Render(buffer.data(), 2, false));
@@ -2292,7 +2255,7 @@ TEST_CASE("AudioVoice center pan swaps stereo output for voiced instruments") {
   instrument.VoiceVar(FourCC::VoicePan)->SetInt(0x7F, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 2> warmup{};
   std::array<AudioSample, 2> buffer{};
@@ -2311,7 +2274,7 @@ TEST_CASE("AudioVoice packed mono expands to stereo only at pan") {
   instrument.VoiceVar(FourCC::VoicePan)->SetInt(0x7F, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 2> buffer{};
   REQUIRE(voice.Render(buffer.data(), 1, false));
@@ -2331,10 +2294,8 @@ TEST_CASE("AudioVoice applies live LFO values to continuous targets") {
 
   AudioVoice baseVoice(0);
   AudioVoice modVoice(1);
-  REQUIRE(baseVoice.StartInstrument(&baseInstrument, 60,
-                                    InstrumentStartMode::NewNote));
-  REQUIRE(modVoice.StartInstrument(&modInstrument, 60,
-                                   InstrumentStartMode::NewNote));
+  REQUIRE(baseVoice.StartInstrument(&baseInstrument, 60, true));
+  REQUIRE(modVoice.StartInstrument(&modInstrument, 60, true));
 
   std::array<AudioSample, 8> baseBuffer{};
   std::array<AudioSample, 8> modBuffer{};
@@ -2362,10 +2323,8 @@ TEST_CASE("AudioVoice applies live LFO values to first insert amount") {
 
   AudioVoice baseVoice(0);
   AudioVoice modVoice(1);
-  REQUIRE(baseVoice.StartInstrument(&baseInstrument, 60,
-                                    InstrumentStartMode::NewNote));
-  REQUIRE(modVoice.StartInstrument(&modInstrument, 60,
-                                   InstrumentStartMode::NewNote));
+  REQUIRE(baseVoice.StartInstrument(&baseInstrument, 60, true));
+  REQUIRE(modVoice.StartInstrument(&modInstrument, 60, true));
 
   std::array<AudioSample, 4> baseWarmup{};
   std::array<AudioSample, 4> modWarmup{};
@@ -2405,10 +2364,8 @@ TEST_CASE("AudioVoice applies live LFO values to second insert amount") {
 
   AudioVoice baseVoice(0);
   AudioVoice modVoice(1);
-  REQUIRE(baseVoice.StartInstrument(&baseInstrument, 60,
-                                    InstrumentStartMode::NewNote));
-  REQUIRE(modVoice.StartInstrument(&modInstrument, 60,
-                                   InstrumentStartMode::NewNote));
+  REQUIRE(baseVoice.StartInstrument(&baseInstrument, 60, true));
+  REQUIRE(modVoice.StartInstrument(&modInstrument, 60, true));
 
   std::array<AudioSample, 4> baseWarmup{};
   std::array<AudioSample, 4> modWarmup{};
@@ -2438,7 +2395,7 @@ TEST_CASE("AudioVoice updates live LFO values between internal render chunks") {
                LFOSettings::MaxRateValue);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
   voice.lfoBank_.states_[0].phase_ = 0.49f;
   voice.lfoBank_.states_[0].currentValue_ = 1.0f;
 
@@ -2467,7 +2424,7 @@ TEST_CASE("AudioVoice advances separated stage LFOs on their own stages") {
                LFOSettings::MaxRateValue);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
   voice.lfoBank_.states_[0].phase_ = 0.49f;
   voice.lfoBank_.states_[0].currentValue_ = 1.0f;
   voice.lfoBank_.states_[1].phase_ = 0.49f;
@@ -2505,7 +2462,7 @@ TEST_CASE("AudioVoice applies live LFO values to ADSR sustain") {
                0x40, LFOSettings::MaxRateValue);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
   voice.lfoBank_.states_[0].phase_ = 0.49f;
   voice.lfoBank_.states_[0].currentValue_ = 1.0f;
 
@@ -2530,7 +2487,7 @@ TEST_CASE("AudioVoice base-width stage keeps state across renders") {
   instrument.VoiceVar(FourCC::VoiceBandpassMix)->SetInt(32, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 8> first{};
   std::array<AudioSample, 8> second{};
@@ -2552,7 +2509,7 @@ TEST_CASE("AudioVoice cached stereo bandpass is bit-exact across blocks") {
   instrument.VoiceVar(FourCC::VoiceBandpassMix)->SetInt(32, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   constexpr int kFrameCount = 19;
   std::array<AudioSample, kFrameCount * 2> input{};
@@ -2602,8 +2559,7 @@ TEST_CASE("AudioVoice optimized stereo standard filter is bit-exact") {
     instrument.VoiceVar(FourCC::VoiceFilterAttack)->SetInt(96, false);
 
     AudioVoice voice(0);
-    REQUIRE(
-        voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+    REQUIRE(voice.StartInstrument(&instrument, 60, true));
     voice.syncFilterType();
 
     constexpr int kFrameCount = 41;
@@ -2643,8 +2599,7 @@ TEST_CASE("AudioVoice optimized stereo standard filter is bit-exact") {
     instrument.VoiceVar(FourCC::VoiceFilterSustain)->SetInt(0x91, false);
 
     AudioVoice voice(0);
-    REQUIRE(
-        voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+    REQUIRE(voice.StartInstrument(&instrument, 60, true));
     voice.syncFilterType();
 
     constexpr int kFrameCount = 41;
@@ -2686,7 +2641,7 @@ TEST_CASE("AudioVoice standard filter lowpass output stays bounded") {
   instrument.VoiceVar(FourCC::VoiceFilterResonance)->SetInt(0xC0, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 8> buffer{};
   REQUIRE(voice.Render(buffer.data(), 4, false));
@@ -2722,7 +2677,7 @@ TEST_CASE("AudioVoice release envelope fades out and stops the voice") {
   instrument.VoiceVar(FourCC::VoiceAmpRelease)->SetInt(1, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 16> warmup{};
   REQUIRE(voice.Render(warmup.data(), 8, false));
@@ -2753,7 +2708,7 @@ TEST_CASE("AudioVoice release preserves a held tail until hard stop") {
   instrument.VoiceVar(FourCC::VoiceAmpRelease)->SetInt(0xFF, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 16> buffer{};
   REQUIRE(voice.Render(buffer.data(), 8, false));
@@ -2780,7 +2735,7 @@ TEST_CASE(
   instrument.VoiceVar(FourCC::VoiceAmpRelease)->SetInt(0x80, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   // Set TLN to 2 (so it should release at tick 3)
   voice.ProcessCommand(TrackerCommand::InstrumentCommandGateLength, 2);
@@ -2791,8 +2746,7 @@ TEST_CASE(
   CHECK(instrument.ReleaseCount() == 0);
 
   // Tick 2 (Legato note starts here)
-  REQUIRE(
-      voice.StartInstrument(&instrument, 62, InstrumentStartMode::TiedNote));
+  REQUIRE(voice.StartInstrument(&instrument, 62, false));
   REQUIRE(voice.Render(buffer.data(), 4, true));
   CHECK(instrument.ReleaseCount() == 0);
 
@@ -2807,7 +2761,7 @@ TEST_CASE("AudioVoice trigger length zero does not schedule release") {
   instrument.VoiceVar(FourCC::VoiceTriggerLength)->SetInt(0, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 8> buffer{};
   REQUIRE(voice.Render(buffer.data(), 4, true));
@@ -2824,7 +2778,7 @@ TEST_CASE("AudioVoice trigger length releases after configured audio slices") {
   instrument.VoiceVar(FourCC::VoiceAmpRelease)->SetInt(0x80, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 8> buffer{};
   REQUIRE(voice.Render(buffer.data(), 4, true)); // Tick 1
@@ -2847,7 +2801,7 @@ TEST_CASE("AudioVoice TLN command updates trigger length") {
   instrument.VoiceVar(FourCC::VoiceAmpRelease)->SetInt(0x80, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   voice.ProcessCommand(TrackerCommand::InstrumentCommandGateLength, 6);
 
@@ -2872,7 +2826,7 @@ TEST_CASE("AudioVoice release follows live release parameter changes") {
   instrument.VoiceVar(FourCC::VoiceAmpRelease)->SetInt(0x80, false);
 
   AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
+  REQUIRE(voice.StartInstrument(&instrument, 60, true));
 
   std::array<AudioSample, 16> warmup{};
   REQUIRE(voice.Render(warmup.data(), 8, false));
@@ -2912,10 +2866,8 @@ TEST_CASE("AudioVoice filter envelope raises the standard filter cutoff") {
 
   AudioVoice baseVoice(0);
   AudioVoice envVoice(1);
-  REQUIRE(baseVoice.StartInstrument(&baseInstrument, 60,
-                                    InstrumentStartMode::NewNote));
-  REQUIRE(envVoice.StartInstrument(&envInstrument, 60,
-                                   InstrumentStartMode::NewNote));
+  REQUIRE(baseVoice.StartInstrument(&baseInstrument, 60, true));
+  REQUIRE(envVoice.StartInstrument(&envInstrument, 60, true));
 
   std::array<AudioSample, 16> baseBuffer{};
   std::array<AudioSample, 16> envBuffer{};
@@ -2923,178 +2875,4 @@ TEST_CASE("AudioVoice filter envelope raises the standard filter cutoff") {
   REQUIRE(envVoice.Render(envBuffer.data(), 8, false));
 
   CHECK(sumAbs(envBuffer) > sumAbs(baseBuffer));
-}
-
-TEST_CASE("AudioVoice IRT preserves value commands through repeated restarts") {
-  StubInstrument instrument;
-  AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  const TrackerCommand commands[] = {
-      TrackerCommand::InstrumentCommandVolume,
-      TrackerCommand::InstrumentCommandPan,
-      TrackerCommand::InstrumentCommandFilterCut,
-      TrackerCommand::InstrumentCommandFilterResonance};
-  AudioVoice::CommandValueState *states[] = {
-      &voice.ampCommand_, &voice.panCommand_, &voice.filterCutoffCommand_,
-      &voice.filterResonanceCommand_};
-  for (int i = 0; i < 4; ++i) {
-    REQUIRE(voice.ProcessCommand(commands[i], 0x1860));
-  }
-  voice.advanceCommandRamps(1.0f);
-  for (int pass = 0; pass < 3; ++pass) {
-    for (int i = 0; i < 4; ++i) {
-      const auto before = *states[i];
-      REQUIRE(voice.StartInstrument(&instrument, 62,
-                                    InstrumentStartMode::Retrigger));
-      CHECK(states[i]->current_ == doctest::Approx(before.current_));
-      CHECK(states[i]->target_ == doctest::Approx(before.target_));
-      CHECK(states[i]->stepsRemaining_ ==
-            doctest::Approx(before.stepsRemaining_));
-      CHECK(states[i]->overrideActive_ == before.overrideActive_);
-      CHECK(states[i]->rampActive_ == before.rampActive_);
-    }
-    // Also exercise completed ramps and immediate overrides.
-    voice.advanceCommandRamps(10.0f);
-    if (pass == 1) {
-      for (auto command : commands) {
-        REQUIRE(voice.ProcessCommand(command, 0x0040));
-      }
-    }
-  }
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  for (auto *state : states) {
-    CHECK_FALSE(state->overrideActive_);
-    CHECK_FALSE(state->rampActive_);
-  }
-}
-
-TEST_CASE(
-    "AudioVoice IRT preserves pitch contributors and reapplies their ratio") {
-  StubInstrument instrument;
-  AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  REQUIRE(
-      voice.StartInstrument(&instrument, 64, InstrumentStartMode::TiedNote));
-  REQUIRE(
-      voice.ProcessCommand(TrackerCommand::InstrumentCommandLegato, 0x1800));
-  REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandPitchSlide,
-                               0x180C));
-  REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandPitchFineTune,
-                               0x1840));
-  REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandArpeggiator,
-                               0x0037));
-  voice.advancePitchRamps(1.0f);
-  voice.advancePitchTick();
-  voice.applyPitchMultiplier();
-  const float ratio = instrument.PitchMultiplier();
-  const auto arpPosition = voice.pitchCommand_.arpeggiator_.position_;
-  const float remaining = voice.pitchCommand_.legato_.stepsRemaining_;
-  const int pitchSets = instrument.PitchSetCount();
-  REQUIRE(
-      voice.StartInstrument(&instrument, 67, InstrumentStartMode::Retrigger));
-  CHECK(voice.pitchCommand_.contributors_.size() == 4);
-  CHECK(voice.pitchCommand_.arpeggiator_.position_ == arpPosition);
-  CHECK(voice.pitchCommand_.legato_.stepsRemaining_ ==
-        doctest::Approx(remaining));
-  CHECK(instrument.PitchMultiplier() == doctest::Approx(ratio));
-  CHECK(instrument.PitchSetCount() > pitchSets);
-  voice.advancePitchRamps(1.0f);
-  CHECK(voice.pitchCommand_.legato_.stepsRemaining_ < remaining);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  CHECK(voice.pitchCommand_.contributors_.empty());
-}
-
-TEST_CASE("AudioVoice IRT restarts envelopes and respects LFO trigger modes") {
-  StubInstrument instrument;
-  instrument.VoiceVar(FourCC::VoiceAmpAttack)->SetInt(0x40, false);
-  instrument.VoiceVar(FourCC::VoiceFilterAttack)->SetInt(0x40, false);
-  ConfigureLFO(instrument, 0, LFOTarget::VoiceFilterCutoff, LFOShape::Sine,
-               0xFF, 0x40);
-  ConfigureLFO(instrument, 1, LFOTarget::VoicePan, LFOShape::Sine, 0xFF, 0x40);
-  instrument.VoiceLFOSettings()->SetTriggerMode(0, LFOTriggerMode::Trigger);
-  instrument.VoiceLFOSettings()->SetTriggerMode(1, LFOTriggerMode::FreeRun);
-  AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  REQUIRE(
-      voice.ProcessCommand(TrackerCommand::InstrumentCommandVolume, 0x1800));
-  voice.advanceCommandRamps(1.0f);
-  const float volume = voice.ampCommand_.current_;
-  voice.lfoBank_.states_[0].phase_ = 0.25f;
-  voice.lfoBank_.states_[1].phase_ = 0.25f;
-  voice.ampEnvelope_.Advance();
-  voice.filterEnvelope_.Advance();
-  CHECK(voice.ampEnvelope_.GetValue() > 0.0f);
-  CHECK(voice.filterEnvelope_.GetValue() > 0.0f);
-  voice.ReleaseInstrument();
-  REQUIRE(voice.releasePending_);
-  REQUIRE(
-      voice.StartInstrument(&instrument, 60, InstrumentStartMode::Retrigger));
-  CHECK_FALSE(voice.releasePending_);
-  CHECK_FALSE(voice.ampEnvelope_.IsIdle());
-  CHECK_FALSE(voice.filterEnvelope_.IsIdle());
-  CHECK(voice.ampEnvelope_.GetValue() == doctest::Approx(0.0f));
-  CHECK(voice.filterEnvelope_.GetValue() == doctest::Approx(0.0f));
-  CHECK(voice.ampCommand_.current_ == doctest::Approx(volume));
-  CHECK(voice.lfoBank_.states_[0].phase_ == doctest::Approx(0.0f));
-  CHECK(voice.lfoBank_.states_[1].phase_ == doctest::Approx(0.25f));
-  CHECK(instrument.StopCount() == 1);
-}
-
-TEST_CASE("AudioVoice IRT keeps command gate countdown but restarts configured "
-          "timer") {
-  StubInstrument instrument;
-  instrument.VoiceVar(FourCC::VoiceTriggerLength)->SetInt(10, false);
-  AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  voice.advanceTriggerRelease(true);
-  REQUIRE(
-      voice.StartInstrument(&instrument, 60, InstrumentStartMode::Retrigger));
-  CHECK(voice.triggerReleaseSlicesRemaining_ == 11);
-  REQUIRE(voice.ProcessCommand(TrackerCommand::InstrumentCommandGateLength, 2));
-  voice.advanceTriggerRelease(true);
-  REQUIRE(
-      voice.StartInstrument(&instrument, 60, InstrumentStartMode::Retrigger));
-  voice.advanceTriggerRelease(true);
-  CHECK_FALSE(voice.releasePending_);
-  voice.advanceTriggerRelease(true);
-  CHECK(voice.releasePending_);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  CHECK_FALSE(voice.gateCommandActive_);
-}
-
-TEST_CASE("AudioVoice IRT preserves an additional pitch contributor without a "
-          "whitelist") {
-  struct ExtraCommand : AudioVoice::PitchUpdater {
-    float GetCurrentRatio() const override { return 1.25f; }
-    void Reset() override { reset = true; }
-    bool reset = false;
-  } command;
-  StubInstrument instrument;
-  AudioVoice voice(0);
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  REQUIRE(voice.registerPitchUpdater(command));
-  REQUIRE(
-      voice.StartInstrument(&instrument, 62, InstrumentStartMode::Retrigger));
-  CHECK(command.registered_);
-  CHECK_FALSE(command.reset);
-  CHECK(instrument.PitchMultiplier() == doctest::Approx(1.25f));
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  CHECK(command.reset);
-  CHECK_FALSE(command.registered_);
-}
-
-TEST_CASE("AudioVoice failed IRT releases voice ownership and command state") {
-  StubInstrument instrument;
-  AudioVoice voice(0);
-  CHECK_FALSE(
-      voice.StartInstrument(nullptr, 60, InstrumentStartMode::Retrigger));
-  REQUIRE(voice.StartInstrument(&instrument, 60, InstrumentStartMode::NewNote));
-  REQUIRE(
-      voice.ProcessCommand(TrackerCommand::InstrumentCommandVolume, 0x1800));
-  instrument.FailStart();
-  CHECK_FALSE(
-      voice.StartInstrument(&instrument, 62, InstrumentStartMode::Retrigger));
-  CHECK(voice.GetInstrument() == nullptr);
-  CHECK_FALSE(voice.ampCommand_.overrideActive_);
-  CHECK(voice.ampEnvelope_.IsIdle());
 }

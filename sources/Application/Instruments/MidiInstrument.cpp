@@ -88,11 +88,9 @@ void MidiInstrument::OnStart() {
   svc_->RegisterActiveChannel(channel_.GetInt());
 };
 
-bool MidiInstrument::Start(int c, unsigned char note,
-                           InstrumentStartMode mode) {
+bool MidiInstrument::Start(int c, unsigned char note, bool retrigger) {
   const bool hasActiveNotes = lastNoteCount_[c] > 0;
-  const bool continueNote =
-      mode == InstrumentStartMode::TiedNote && hasActiveNotes;
+  const bool continueNote = !retrigger && hasActiveNotes;
   const bool sameNoteContinue = continueNote && (lastNotes_[c][0] == note);
 
   if (sameNoteContinue) {
@@ -119,7 +117,7 @@ bool MidiInstrument::Start(int c, unsigned char note,
   Variable *v = FindVariable(FourCC::MidiInstrumentChannel);
   int channel = v->GetInt();
 
-  if (mode != InstrumentStartMode::TiedNote) {
+  if (retrigger) {
     const bool restoreConfiguredVolume = volumeCommand_[c].overrideActive_;
     ResetVolumeCommand(c);
     if (restoreConfiguredVolume) {

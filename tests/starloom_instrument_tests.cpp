@@ -203,12 +203,12 @@ TEST_CASE(
   instrument.Stop(1);
   CHECK_FALSE(instrument.Render(0, channel0.data(), channel0.size(), false));
 
-  REQUIRE(instrument.Start(0, 60, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(0, 60, true));
   REQUIRE(instrument.Render(0, channel0.data(), channel0.size(), false));
   CHECK(std::any_of(channel0.begin(), channel0.end(),
                     [](AudioSample sample) { return sample != 0; }));
 
-  REQUIRE(instrument.Start(1, 72, InstrumentStartMode::NewNote));
+  REQUIRE(instrument.Start(1, 72, true));
   REQUIRE(instrument.Render(1, channel1.data(), channel1.size(), false));
   CHECK(std::any_of(channel1.begin(), channel1.end(),
                     [](AudioSample sample) { return sample != 0; }));

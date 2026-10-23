@@ -23,8 +23,7 @@ bool NoneInstrument::Init() { return true; };
 
 void NoneInstrument::OnStart(){};
 
-bool NoneInstrument::Start(int c, unsigned char note,
-                           InstrumentStartMode mode) {
+bool NoneInstrument::Start(int c, unsigned char note, bool retrigger) {
   return true;
 };
 
