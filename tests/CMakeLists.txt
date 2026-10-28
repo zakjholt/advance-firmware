@@ -99,6 +99,7 @@ add_executable(picoTracker_tests
   ../sources/Application/Effects/OutputEffect.cpp
   ../sources/Application/Effects/OutputEffectSlot.cpp
   ../sources/Application/Effects/PerformanceFxSlot.cpp
+  ../sources/Application/Effects/PerformanceFxProcessors.cpp
   ../sources/Application/Effects/DattorroReverbOutputEffect.cpp
   ../sources/Application/Model/Chain.cpp
   ../sources/Application/Model/Config.cpp

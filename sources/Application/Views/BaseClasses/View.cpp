@@ -217,6 +217,11 @@ void View::drawMap() {
     pos._y += 4;
     DrawString(pos._x, pos._y, "X", props);
     break;
+  case VT_PERFORMANCE_EFFECTS:
+    pos._y += 4;
+    pos._x += 1;
+    DrawString(pos._x, pos._y, "F", props);
+    break;
   default: // VT_SONG
     pos._y += 2;
     DrawString(pos._x, pos._y, "S", props);
@@ -507,6 +512,7 @@ bool View::shouldDeferPlayButton(uint16_t mask) const {
   case VT_THEME:
   case VT_MIXER:
   case VT_MASTER_EFFECTS:
+  case VT_PERFORMANCE_EFFECTS:
     return mask == EPBM_PLAY;
 
   default:

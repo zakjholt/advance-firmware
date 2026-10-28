@@ -12,6 +12,7 @@
  */
 
 #include "Project.h"
+#include "Application/Effects/PerformanceFxDefinitions.h"
 #include "Application/Instruments/CommandList.h"
 #include "Application/Instruments/SampleInstrument.h"
 #include "Application/Instruments/SamplePool.h"
@@ -156,11 +157,15 @@ Project::Project(const char *name)
       channel6PfxBus_(FourCC::VarChannel6PfxBus, DEFAULT_CHANNEL_PFX_ASSIGNMENT),
       channel7PfxBus_(FourCC::VarChannel7PfxBus, DEFAULT_CHANNEL_PFX_ASSIGNMENT),
       channel8PfxBus_(FourCC::VarChannel8PfxBus, DEFAULT_CHANNEL_PFX_ASSIGNMENT),
-      pfx1EffectType_(FourCC::VarPfx1EffectType, kDefaultPerformanceFxEffectType),
+      pfx1EffectType_(FourCC::VarPfx1EffectType, kPerformanceFxEffectNames,
+                      kPerformanceFxEffectTypeCount,
+                      kDefaultPerformanceFxEffectType),
       pfx1Amount_(FourCC::VarPfx1Amount, kDefaultPerformanceFxAmount),
       pfx1ParamA_(FourCC::VarPfx1ParamA, kDefaultPerformanceFxParam),
       pfx1ParamB_(FourCC::VarPfx1ParamB, kDefaultPerformanceFxParam),
-      pfx2EffectType_(FourCC::VarPfx2EffectType, kDefaultPerformanceFxEffectType),
+      pfx2EffectType_(FourCC::VarPfx2EffectType, kPerformanceFxEffectNames,
+                      kPerformanceFxEffectTypeCount,
+                      kDefaultPerformanceFxEffectType),
       pfx2Amount_(FourCC::VarPfx2Amount, kDefaultPerformanceFxAmount),
       pfx2ParamA_(FourCC::VarPfx2ParamA, kDefaultPerformanceFxParam),
       pfx2ParamB_(FourCC::VarPfx2ParamB, kDefaultPerformanceFxParam),

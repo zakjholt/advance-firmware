@@ -96,6 +96,10 @@ public:
   OutputEffect *GetOutputEffect(int index);
   const OutputEffect *GetOutputEffect(int index) const;
   PerformanceFxSlot *GetPerformanceFxSlot(int index);
+  void SetPerformanceFxTrigger(int bus, bool held);
+  void TogglePerformanceFxLatch(int bus);
+  bool IsPerformanceFxLatched(int bus) const;
+  bool IsPerformanceFxEngaged(int bus) const;
   bool HasOutputEffectTail() const;
   void ClearOutputEffectTails();
   void ClearOutputEffectTailsLocked();
@@ -123,6 +127,8 @@ private:
   etl::optional<PerformanceFxSlot> performanceEffects_[PERFORMANCE_FX_BUS_COUNT];
   ChannelOutputRouting channelRouting_[SONG_CHANNEL_COUNT];
   EffectReturnRouting effectReturnRouting_[OUTPUT_EFFECT_COUNT];
+  bool pfxTriggerHeld_[PERFORMANCE_FX_BUS_COUNT] = {};
+  bool pfxLatchOn_[PERFORMANCE_FX_BUS_COUNT] = {};
   SysMutex *sync_;
   Project *project_; // Reference to the current project
   MixerServiceMode mode_ = MSM_AUDIO;

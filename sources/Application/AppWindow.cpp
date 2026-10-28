@@ -36,6 +36,7 @@
 #include "Application/Views/CreditsView.h"
 #include "Application/Views/MasterEffectsView.h"
 #include "Application/Views/MixerView.h"
+#include "Application/Views/PerformanceEffectsView.h"
 #include "Application/Views/ModalDialogs/FullScreenBox.h"
 #include "Application/Views/ModalDialogs/MessageBox.h"
 #include "Application/Views/NullView.h"
@@ -170,6 +171,7 @@ struct AppWindowViews {
   SelectProjectView selectProjectView;
   MixerView mixerView;
   MasterEffectsView masterEffectsView;
+  PerformanceEffectsView performanceEffectsView;
   SampleEditorView sampleEditorView;
   SampleSlicesView sampleSlicesView;
   RecordView recordView;
@@ -185,9 +187,10 @@ struct AppWindowViews {
         instrumentView(w, &viewData), voiceView(w, &viewData),
         tableView(w, &viewData), grooveView(w, &viewData),
         selectProjectView(w, &viewData), mixerView(w, &viewData),
-        masterEffectsView(w, &viewData), sampleEditorView(w, &viewData),
-        sampleSlicesView(w, &viewData), recordView(w, &viewData),
-        nullView(w, &viewData), creditsView(w, &viewData) {}
+        masterEffectsView(w, &viewData), performanceEffectsView(w, &viewData),
+        sampleEditorView(w, &viewData), sampleSlicesView(w, &viewData),
+        recordView(w, &viewData), nullView(w, &viewData),
+        creditsView(w, &viewData) {}
 };
 
 void AppWindow::defineColor(FourCC colorCode, GUIColor &color,
@@ -269,6 +272,7 @@ AppWindow::AppWindow(I_GUIWindowImp &imp, const char *projectName)
   views_->selectProjectView.AddObserver(*this);
   views_->mixerView.AddObserver(*this);
   views_->masterEffectsView.AddObserver(*this);
+  views_->performanceEffectsView.AddObserver(*this);
   views_->sampleEditorView.AddObserver(*this);
   views_->sampleSlicesView.AddObserver(*this);
   views_->recordView.AddObserver(*this);
@@ -590,6 +594,7 @@ AppWindow::LoadProjectResult AppWindow::LoadProject(const char *projectName) {
     views_->voiceView.Reset();
     views_->mixerView.Reset();
     views_->masterEffectsView.Reset();
+    views_->performanceEffectsView.Reset();
     views_->importView.Reset();
     views_->instrumentImportView.Reset();
     views_->fm6PresetBrowserView.Reset();
@@ -1012,6 +1017,9 @@ void AppWindow::Update(Observable &o, I_ObservableData *d) {
     case VT_MASTER_EFFECTS:
       _currentView = &views_->masterEffectsView;
       break;
+    case VT_PERFORMANCE_EFFECTS:
+      _currentView = &views_->performanceEffectsView;
+      break;
     case VT_THEME:
       _currentView = &views_->themeView;
       break;
@@ -1174,7 +1182,8 @@ bool AppWindow::AutoSave() {
                           _currentView == &views_->deviceView ||
                           _currentView == &views_->themeView ||
                           _currentView == &views_->mixerView ||
-                          _currentView == &views_->masterEffectsView;
+                          _currentView == &views_->masterEffectsView ||
+                          _currentView == &views_->performanceEffectsView;
   bool recording = IsRecordingActive();
   if (!player->IsRunning() && !recording && autosaveSafeView) {
     Trace::Log("APPWINDOW", "AutoSaving Project Data");
