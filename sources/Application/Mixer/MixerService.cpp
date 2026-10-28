@@ -15,6 +15,7 @@
 #include "Application/AppWindow.h"
 #include "Application/Application.h"
 #include "Application/Effects/OutputEffectDefinitions.h"
+#include "Application/Effects/PerformanceFxConstants.h"
 #include "Application/Model/Config.h"
 #include "Application/Model/Project.h"
 #include "Application/Persistency/PersistenceConstants.h"
@@ -40,11 +41,17 @@ namespace {
 __attribute__((aligned(32))) __attribute__((section(".DTCMRAM")))
 AudioSample gOutputEffectWetBuffers[OUTPUT_EFFECT_COUNT][MAX_SAMPLE_COUNT * 2];
 
+__attribute__((aligned(32))) __attribute__((section(".DTCMRAM")))
+AudioSample gPerformanceFxInputBuffers[PERFORMANCE_FX_BUS_COUNT]
+                                      [MAX_SAMPLE_COUNT * 2];
+
 constexpr uint16_t kProfileOrderOutputFx1 = 60;
 constexpr uint16_t kProfileOrderOutputFx2 = 61;
 constexpr uint16_t kProfileOrderOutputFx3 = 62;
 constexpr uint16_t kProfileOrderOutputFx4 = 63;
 constexpr uint16_t kProfileOrderOutputFxTotal = 64;
+constexpr uint16_t kProfileOrderPerformanceFx1 = 58;
+constexpr uint16_t kProfileOrderPerformanceFx2 = 59;
 constexpr uint32_t kOutputEffectsBudgetPctX1000 = 40000U;
 constexpr uint32_t kDelayBudgetPctX1000 = 10000U;
 constexpr uint32_t kReverbBudgetPctX1000 = 30000U;
@@ -58,6 +65,10 @@ DWTProfileStats gOutputEffectProfiles[OUTPUT_EFFECT_COUNT] = {
 DWTProfileStats gOutputEffectTotalProfile = {
     .name_ = "fx total",
     .budgetPctX1000_ = kOutputEffectsBudgetPctX1000,
+};
+DWTProfileStats gPerformanceFxProfiles[PERFORMANCE_FX_BUS_COUNT] = {
+    {.name_ = "pfx1"},
+    {.name_ = "pfx2"},
 };
 
 void registerOutputEffectProfiles() {
@@ -76,11 +87,16 @@ void registerOutputEffectProfiles() {
   gOutputEffectTotalProfile.aggregateChildren_[2] = &gOutputEffectProfiles[2];
   gOutputEffectTotalProfile.aggregateChildren_[3] = &gOutputEffectProfiles[3];
   gOutputEffectTotalProfile.aggregateChildCount_ = OUTPUT_EFFECT_COUNT;
+  gPerformanceFxProfiles[0].displayOrder_ = kProfileOrderPerformanceFx1;
+  gPerformanceFxProfiles[1].displayOrder_ = kProfileOrderPerformanceFx2;
 
   for (int i = 0; i < OUTPUT_EFFECT_COUNT; ++i) {
     RegisterDWTProfileStats(&gOutputEffectProfiles[i]);
   }
   RegisterDWTProfileStats(&gOutputEffectTotalProfile);
+  for (int i = 0; i < PERFORMANCE_FX_BUS_COUNT; ++i) {
+    RegisterDWTProfileStats(&gPerformanceFxProfiles[i]);
+  }
   registered = true;
 }
 
@@ -97,6 +113,8 @@ MixerService::MixerService() : master_(), sync_(platform_mutex()) {
 
   for (int channel = 0; channel < SONG_CHANNEL_COUNT; ++channel) {
     channelRouting_[channel].channelGain = 0;
+    channelRouting_[channel].pfxInputBuffer = nullptr;
+    channelRouting_[channel].pfxBusIndex = -1;
     for (int fx = 0; fx < OUTPUT_EFFECT_COUNT; ++fx) {
       channelRouting_[channel].sendGain[fx] = 0;
       channelRouting_[channel].sendBuffer[fx] = nullptr;
@@ -125,6 +143,10 @@ bool MixerService::Init(Project *project) {
     outputEffects_[fx].emplace(gOutputEffectWetBuffers[fx], *effect);
   }
 
+  for (int pfx = 0; pfx < PERFORMANCE_FX_BUS_COUNT; ++pfx) {
+    performanceEffects_[pfx].emplace(gPerformanceFxInputBuffers[pfx]);
+  }
+
   // Send destinations are fixed for the lifetime of the mixer. Keeping them
   // valid at zero gain gives every rendered channel the same four-send path.
   for (int channel = 0; channel < SONG_CHANNEL_COUNT; ++channel) {
@@ -142,15 +164,22 @@ bool MixerService::Init(Project *project) {
   bool result = false;
 
   char buffer[5];
-  // Master renders modules in insertion order. Track and stream buses must
-  // fill all direct sends first, followed by FX1, FX2, delay, and reverb so
-  // each effect can add its wet output to later effects in the same pass.
+  // Master renders modules in insertion order. Track and stream buses fill
+  // direct (and PFX) paths first, then performance FX buses, then FX1–4 so
+  // each effect can add wet output to later effects in the same pass.
   for (int i = 0; i < MAX_BUS_COUNT; i++) {
     if (i < TRACK_MIX_BUS_COUNT) {
       hex2char(i, buffer);
       bus_[i].SetName(etl::string<12>(buffer));
     } else if (i == STREAM_MIX_BUS) {
       bus_[i].SetName("Stream");
+    } else if (i >= PERFORMANCE_FX_BUS_BASE && i < OUTPUT_EFFECT_BUS_BASE) {
+      int pfxIndex = i - PERFORMANCE_FX_BUS_BASE;
+      NAssert(pfxIndex >= 0 && pfxIndex < PERFORMANCE_FX_BUS_COUNT);
+      npf_snprintf(buffer, sizeof(buffer), "P%d", pfxIndex + 1);
+      bus_[i].SetName(etl::string<12>(buffer));
+      bus_[i].SetRenderProfileStats(&gPerformanceFxProfiles[pfxIndex]);
+      bus_[i].AddModule(PerformanceFxSlotAt(pfxIndex));
     } else {
       int fxIndex = i - OUTPUT_EFFECT_BUS_BASE;
       NAssert(fxIndex >= 0 && fxIndex < OUTPUT_EFFECT_COUNT);
@@ -326,6 +355,16 @@ void MixerService::RefreshMixRouting(Project *project) {
     channelRouting_[i].channelGain =
         ToLogVolume(project->GetChannelVolume(i), Project::MixerVolumeMaximum);
 
+    const int pfxBus = project->GetChannelPfxBusIndex(i);
+    if (pfxBus >= 0 && pfxBus < PERFORMANCE_FX_BUS_COUNT) {
+      channelRouting_[i].pfxBusIndex = pfxBus;
+      channelRouting_[i].pfxInputBuffer =
+          PerformanceFxSlotAt(pfxBus).GetAccumulationBuffer();
+    } else {
+      channelRouting_[i].pfxBusIndex = -1;
+      channelRouting_[i].pfxInputBuffer = nullptr;
+    }
+
     for (int fx = 0; fx < OUTPUT_EFFECT_COUNT; ++fx) {
       AudioSample sendMix = ToLogVolume(project->GetChannelFXSend(i, fx),
                                         OutputEffectSendMaximum);
@@ -335,6 +374,10 @@ void MixerService::RefreshMixRouting(Project *project) {
   }
 
   bus_[STREAM_MIX_BUS].SetVolume(kAudioSampleOne);
+
+  for (int pfx = 0; pfx < PERFORMANCE_FX_BUS_COUNT; ++pfx) {
+    bus_[PERFORMANCE_FX_BUS_BASE + pfx].SetVolume(kAudioSampleOne);
+  }
 
   for (int fx = 0; fx < OUTPUT_EFFECT_COUNT; ++fx) {
     bus_[OUTPUT_EFFECT_BUS_BASE + fx].SetVolume(kAudioSampleOne);
@@ -364,6 +407,10 @@ void MixerService::PrepareRenderPass(Project *project) {
     RefreshMixRouting(project);
   }
 
+  for (int pfx = 0; pfx < PERFORMANCE_FX_BUS_COUNT; ++pfx) {
+    PerformanceFxSlotAt(pfx).ClearAccumulationBuffer();
+  }
+
   for (int fx = 0; fx < OUTPUT_EFFECT_COUNT; ++fx) {
     OutputEffectSlotAt(fx).ClearAccumulationBuffer();
     OutputEffectSlotAt(fx).BeginRenderCycle(
@@ -381,6 +428,26 @@ const OutputEffectSlot &MixerService::OutputEffectSlotAt(int index) const {
   NAssert(index >= 0 && index < OUTPUT_EFFECT_COUNT);
   NAssert(outputEffects_[index].has_value());
   return outputEffects_[index].value();
+}
+
+PerformanceFxSlot &MixerService::PerformanceFxSlotAt(int index) {
+  NAssert(index >= 0 && index < PERFORMANCE_FX_BUS_COUNT);
+  NAssert(performanceEffects_[index].has_value());
+  return performanceEffects_[index].value();
+}
+
+const PerformanceFxSlot &MixerService::PerformanceFxSlotAt(int index) const {
+  NAssert(index >= 0 && index < PERFORMANCE_FX_BUS_COUNT);
+  NAssert(performanceEffects_[index].has_value());
+  return performanceEffects_[index].value();
+}
+
+PerformanceFxSlot *MixerService::GetPerformanceFxSlot(int index) {
+  if (index < 0 || index >= PERFORMANCE_FX_BUS_COUNT ||
+      !performanceEffects_[index].has_value()) {
+    return nullptr;
+  }
+  return &performanceEffects_[index].value();
 }
 
 int MixerService::GetPlayedBufferPercentage() {
@@ -422,6 +489,10 @@ void MixerService::setRenderingMode(MixerServiceMode mode) {
       bus_[i].SetRenderGain(kAudioSampleOne);
       bus_[i].EnableRendering(true);
     };
+    for (int i = 0; i < PERFORMANCE_FX_BUS_COUNT; ++i) {
+      bus_[PERFORMANCE_FX_BUS_BASE + i].SetRenderGain(kAudioSampleOne);
+      bus_[PERFORMANCE_FX_BUS_BASE + i].EnableRendering(true);
+    }
     for (int i = 0; i < OUTPUT_EFFECT_COUNT; ++i) {
       bus_[OUTPUT_EFFECT_BUS_BASE + i].SetRenderGain(kAudioSampleOne);
       bus_[OUTPUT_EFFECT_BUS_BASE + i].EnableRendering(true);
@@ -490,6 +561,11 @@ bool MixerService::configureRenderPaths() {
     npf_snprintf(path, sizeof(path), "/renders/%s-channel%d.wav", projectname,
                  i);
     bus_[i].SetFileRenderer(path);
+  }
+  for (int i = 0; i < PERFORMANCE_FX_BUS_COUNT; ++i) {
+    npf_snprintf(path, sizeof(path), "/renders/%s-pfx%d.wav", projectname,
+                 i + 1);
+    bus_[PERFORMANCE_FX_BUS_BASE + i].SetFileRenderer(path);
   }
   for (int i = 0; i < OUTPUT_EFFECT_COUNT; ++i) {
     npf_snprintf(path, sizeof(path), "/renders/%s-%s.wav", projectname,

@@ -13,6 +13,7 @@
 
 #include "MixerView.h"
 #include "Application/Effects/OutputEffectDefinitions.h"
+#include "Application/Effects/PerformanceFxConstants.h"
 #include "Application/Mixer/MixerService.h"
 #include "Application/Utils/mathutils.h"
 #include "Application/Views/SampleEditorView.h"
@@ -26,14 +27,15 @@ constexpr int MixerStripX = 5;
 constexpr int MixerStripStride = 3;
 // VU meters grow upwards from a baseline at (anchorY + height - 1). The strip
 // labels sit one row below the baseline and the VOL field one row below that.
-// The meters leave room for the permanent FX send rows above the bottom map.
-constexpr int MixerVuMeterHeight = 9;
-constexpr int MixerStripLabelY = 12;
-constexpr int MixerFieldBaseY = 13;
+// Height leaves room for VOL + PFX + DLY/RVB rows above the bottom map.
+constexpr int MixerVuMeterHeight = 8;
+constexpr int MixerStripLabelY = 11;
+constexpr int MixerFieldBaseY = 12;
 constexpr int MixerRowLabelX = 1;
 constexpr int MixerMasterStripIndex = SONG_CHANNEL_COUNT;
 constexpr int MixerVolumeRow = 0;
-constexpr int MixerFirstEffectRow = 1;
+constexpr int MixerPfxRow = 1;
+constexpr int MixerFirstEffectRow = 2;
 // Keep FX1 and FX2 available in the model while hiding their Mixer rows.
 constexpr int MixerFirstVisibleEffectIndex = kOutputEffectDelayIndex;
 constexpr int MixerVisibleEffectCount =
@@ -56,6 +58,15 @@ FourCC GetChannelVolumeFourCC(int channel) {
       FourCC::VarChannel3Volume, FourCC::VarChannel4Volume,
       FourCC::VarChannel5Volume, FourCC::VarChannel6Volume,
       FourCC::VarChannel7Volume, FourCC::VarChannel8Volume};
+  return ids[channel];
+}
+
+FourCC GetChannelPfxBusFourCC(int channel) {
+  static const FourCC ids[] = {
+      FourCC::VarChannel1PfxBus, FourCC::VarChannel2PfxBus,
+      FourCC::VarChannel3PfxBus, FourCC::VarChannel4PfxBus,
+      FourCC::VarChannel5PfxBus, FourCC::VarChannel6PfxBus,
+      FourCC::VarChannel7PfxBus, FourCC::VarChannel8PfxBus};
   return ids[channel];
 }
 
@@ -135,6 +146,7 @@ void MixerView::Reset() {
   ClearFocus();
   fieldList_.clear();
   channelVolumeFields_.clear();
+  channelPfxFields_.clear();
   channelSendFields_.clear();
   fxReturnFields_.clear();
   masterVolumeField_.clear();
@@ -163,6 +175,10 @@ void MixerView::OnFocus() {
                    kOutputEffectDelayIndex, kOutputEffectReverbIndex);
     selectedRow_ =
         MixerFirstEffectRow + effectIndex - MixerFirstVisibleEffectIndex;
+  } else if (selectedRow_ == MixerPfxRow) {
+    // Keep PFX row focus when returning from other screens.
+  } else if (selectedRow_ < 0 || selectedRow_ >= MixerRowCount) {
+    selectedRow_ = MixerVolumeRow;
   }
   syncFocusToSelection();
 }
@@ -358,6 +374,7 @@ void MixerView::initMixerFields() {
   }
 
   channelVolumeFields_.clear();
+  channelPfxFields_.clear();
   channelSendFields_.clear();
   fxReturnFields_.clear();
   masterVolumeField_.clear();
@@ -369,7 +386,18 @@ void MixerView::initMixerFields() {
       channelVolumeFields_.emplace_back(volumePos, *volume, "%2.2X", 0,
                                         Project::MixerVolumeMaximum, 1, 0x10);
       UIField *field = &(*channelVolumeFields_.rbegin());
-      fieldGrid_[channel][0] = field;
+      fieldGrid_[channel][MixerVolumeRow] = field;
+      fieldList_.insert(fieldList_.end(), field);
+    }
+
+    GUIPoint pfxPos(GetMixerStripX(channel), MixerFieldBaseY + MixerPfxRow);
+    Variable *pfxBus = project->FindVariable(GetChannelPfxBusFourCC(channel));
+    if (pfxBus) {
+      // 00 = OFF, 01 = PFX1, 02 = PFX2
+      channelPfxFields_.emplace_back(pfxPos, *pfxBus, "%2.2X", 0,
+                                     kPerformanceFxAssignmentMaximum, 1, 1);
+      UIField *field = &(*channelPfxFields_.rbegin());
+      fieldGrid_[channel][MixerPfxRow] = field;
       fieldList_.insert(fieldList_.end(), field);
     }
 
@@ -424,6 +452,8 @@ void MixerView::drawMixerLabels(Player *player, GUITextProperties props) {
     char rowLabel[4];
     if (row == MixerVolumeRow) {
       CopyShortName("VOL", rowLabel);
+    } else if (row == MixerPfxRow) {
+      CopyShortName("PFX", rowLabel);
     } else {
       CopyShortName(
           GetOutputEffectShortNameForSlot(GetEffectIndexForMixerRow(row)),

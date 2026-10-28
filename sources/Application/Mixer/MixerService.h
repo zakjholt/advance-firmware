@@ -18,6 +18,8 @@
 #include "Application/Commands/ApplicationCommandDispatcher.h" // Would be better done externally and call an API here
 #include "Application/Effects/OutputEffectConstants.h"
 #include "Application/Effects/OutputEffectSlot.h"
+#include "Application/Effects/PerformanceFxConstants.h"
+#include "Application/Effects/PerformanceFxSlot.h"
 #include "Externals/etl/include/etl/optional.h"
 #include "Externals/etl/include/etl/string.h"
 #include "Foundation/Observable.h"
@@ -35,7 +37,11 @@ enum MixerServiceMode {
 
 static constexpr int TRACK_MIX_BUS_COUNT = SONG_CHANNEL_COUNT;
 static constexpr int STREAM_MIX_BUS = TRACK_MIX_BUS_COUNT;
-static constexpr int OUTPUT_EFFECT_BUS_BASE = STREAM_MIX_BUS + 1;
+// PFX buses render after tracks/stream so they can collect group-insert input,
+// and before master output FX so DLY/RVB can still run afterward.
+static constexpr int PERFORMANCE_FX_BUS_BASE = STREAM_MIX_BUS + 1;
+static constexpr int OUTPUT_EFFECT_BUS_BASE =
+    PERFORMANCE_FX_BUS_BASE + PERFORMANCE_FX_BUS_COUNT;
 static constexpr int MAX_BUS_COUNT =
     OUTPUT_EFFECT_BUS_BASE + OUTPUT_EFFECT_COUNT;
 
@@ -43,6 +49,9 @@ struct ChannelOutputRouting {
   AudioSample channelGain;
   AudioSample sendGain[OUTPUT_EFFECT_COUNT];
   AudioSample *sendBuffer[OUTPUT_EFFECT_COUNT];
+  // Non-null when this channel is group-inserted into a performance FX bus.
+  AudioSample *pfxInputBuffer;
+  int pfxBusIndex; // -1 when unassigned
 };
 
 struct EffectReturnRouting {
@@ -87,6 +96,7 @@ public:
   OutputEffectSlot *GetOutputEffectSlot(int index);
   OutputEffect *GetOutputEffect(int index);
   const OutputEffect *GetOutputEffect(int index) const;
+  PerformanceFxSlot *GetPerformanceFxSlot(int index);
   bool HasOutputEffectTail() const;
   void ClearOutputEffectTails();
   void ClearOutputEffectTailsLocked();
@@ -104,11 +114,14 @@ private:
   bool configureRenderPaths();
   OutputEffectSlot &OutputEffectSlotAt(int index);
   const OutputEffectSlot &OutputEffectSlotAt(int index) const;
+  PerformanceFxSlot &PerformanceFxSlotAt(int index);
+  const PerformanceFxSlot &PerformanceFxSlotAt(int index) const;
 
   AudioOut *out_;
   MixBus master_;
   MixBus bus_[MAX_BUS_COUNT];
   etl::optional<OutputEffectSlot> outputEffects_[OUTPUT_EFFECT_COUNT];
+  etl::optional<PerformanceFxSlot> performanceEffects_[PERFORMANCE_FX_BUS_COUNT];
   ChannelOutputRouting channelRouting_[SONG_CHANNEL_COUNT];
   EffectReturnRouting effectReturnRouting_[OUTPUT_EFFECT_COUNT];
   SysMutex *sync_;

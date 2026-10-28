@@ -8,6 +8,7 @@ add_library(application_effects
   DelayOutputEffect.cpp
   OutputEffect.cpp
   OutputEffectSlot.cpp
+  PerformanceFxSlot.cpp
 )
 
 set_source_files_properties(

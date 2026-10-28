@@ -130,6 +130,22 @@ bool PlayerChannel::Render(AudioSample *buffer, int samplecount) {
   ScopedDWTProfile outputProfile(
       GetVoiceProfileStats(VoiceProfileComponent::WetDry, profileChannel));
 
+  // Group-insert into a performance FX bus: sum gain-scaled dry into the PFX
+  // input and keep the track MixBus silent so master only hears the bus return.
+  // Master DLY/RVB sends still run from this channel's dry here; with the Phase
+  // 2 passthrough PFX processor that matches post-PFX. Phase 3 relocates sends
+  // onto the processed bus output when nonlinear DSP lands.
+  if (routing.pfxInputBuffer != nullptr) {
+    AudioSample *pfxInput = routing.pfxInputBuffer;
+    for (int i = 0; i < count; ++i) {
+      pfxInput[i] += buffer[i] * channelGain;
+    }
+    PlayerChannelWetDry::ApplyWetDryRouting(
+        buffer, count, kAudioSampleZero, send0, sendGain0, send1, sendGain1,
+        send2, sendGain2, send3, sendGain3);
+    return true;
+  }
+
   // FX sends are post-fader aux sends: source already includes the voice
   // render chain, including insert stages, and sendGain already includes the
   // channel gain, so channel volume affects both the dry path and FX sends.
