@@ -175,9 +175,8 @@ void MixerView::OnFocus() {
                    kOutputEffectDelayIndex, kOutputEffectReverbIndex);
     selectedRow_ =
         MixerFirstEffectRow + effectIndex - MixerFirstVisibleEffectIndex;
-  } else if (selectedRow_ == MixerPfxRow) {
-    // Keep PFX row focus when returning from other screens.
-  } else if (selectedRow_ < 0 || selectedRow_ >= MixerRowCount) {
+  } else if (selectedRow_ != MixerPfxRow &&
+             (selectedRow_ < 0 || selectedRow_ >= MixerRowCount)) {
     selectedRow_ = MixerVolumeRow;
   }
   syncFocusToSelection();

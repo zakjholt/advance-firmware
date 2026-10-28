@@ -37,8 +37,7 @@ enum MixerServiceMode {
 
 static constexpr int TRACK_MIX_BUS_COUNT = SONG_CHANNEL_COUNT;
 static constexpr int STREAM_MIX_BUS = TRACK_MIX_BUS_COUNT;
-// PFX buses render after tracks/stream so they can collect group-insert input,
-// and before master output FX so DLY/RVB can still run afterward.
+// After tracks/stream (group input), before master output FX (post-PFX sends).
 static constexpr int PERFORMANCE_FX_BUS_BASE = STREAM_MIX_BUS + 1;
 static constexpr int OUTPUT_EFFECT_BUS_BASE =
     PERFORMANCE_FX_BUS_BASE + PERFORMANCE_FX_BUS_COUNT;

@@ -19,7 +19,7 @@ constexpr int kCount = kFrames * 2;
 
 } // namespace
 
-TEST_CASE("PerformanceFxSlot passthrough copies accumulated input") {
+TEST_CASE("PerformanceFxSlot copies accumulated input") {
   AudioSample input[MAX_SAMPLE_COUNT * 2] = {};
   AudioSample output[MAX_SAMPLE_COUNT * 2] = {};
   PerformanceFxSlot slot(input);
@@ -57,6 +57,6 @@ TEST_CASE("PerformanceFxSlot clear resets accumulation") {
   CHECK_FALSE(slot.HasInput(kCount));
 }
 
-TEST_CASE("PFX bus count is fixed at two for v1 load testing") {
+TEST_CASE("PFX bus count is two") {
   CHECK(PERFORMANCE_FX_BUS_COUNT == 2);
 }

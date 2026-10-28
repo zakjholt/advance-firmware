@@ -41,8 +41,6 @@ bool PerformanceFxSlot::Render(AudioSample *buffer, int samplecount) {
     return false;
   }
 
-  // Phase 2 passthrough: group sum goes straight to the master bus. Phase 3
-  // replaces this with the selected performance effect processor.
   memcpy(buffer, inputBuffer_, static_cast<size_t>(count) * sizeof(AudioSample));
   return true;
 }

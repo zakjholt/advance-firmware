@@ -13,8 +13,6 @@
 #include "Services/Audio/AudioDriver.h"
 #include "Services/Audio/AudioModule.h"
 
-// Phase 2: passthrough group-insert bus. Channels accumulate into the input
-// buffer; Render copies that sum to the master bus. Real DSP lands in Phase 3.
 class PerformanceFxSlot : public AudioModule {
 public:
   explicit PerformanceFxSlot(AudioSample *inputBuffer);
