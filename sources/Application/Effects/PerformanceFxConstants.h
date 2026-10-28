@@ -4,8 +4,6 @@
  * Copyright (c) 2026 zakjholt
  *
  * This file is part of the picoTracker Advance firmware (zakjholt fork).
- *
- * Performance FX bus constants for live group-insert effects.
  */
 
 #ifndef _PERFORMANCE_FX_CONSTANTS_H_
@@ -13,9 +11,8 @@
 
 #include <cstdint>
 
-// v1 ships two buses for hardware load testing before scaling.
+// Two buses for v1 hardware load testing before scaling.
 static constexpr int PERFORMANCE_FX_BUS_COUNT = 2;
-static constexpr int PERFORMANCE_FX_SLOTS_PER_BUS = 1;
 
 // Persisted track assignment: 0 = OFF, 1 = bus 0, 2 = bus 1, ...
 static constexpr int kPerformanceFxAssignmentOff = 0;
