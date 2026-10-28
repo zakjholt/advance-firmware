@@ -9,6 +9,7 @@ add_library(application_effects
   OutputEffect.cpp
   OutputEffectSlot.cpp
   PerformanceFxSlot.cpp
+  PerformanceFxProcessors.cpp
 )
 
 set_source_files_properties(

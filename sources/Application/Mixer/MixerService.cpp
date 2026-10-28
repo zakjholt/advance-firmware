@@ -377,6 +377,30 @@ void MixerService::RefreshMixRouting(Project *project) {
 
   for (int pfx = 0; pfx < PERFORMANCE_FX_BUS_COUNT; ++pfx) {
     bus_[PERFORMANCE_FX_BUS_BASE + pfx].SetVolume(kAudioSampleOne);
+    PerformanceFxSlot &slot = PerformanceFxSlotAt(pfx);
+    slot.ClearPostSendRouting();
+    slot.SetEffectParameters(
+        static_cast<PerformanceFxEffectType>(project->GetPfxEffectType(pfx)),
+        project->GetPfxAmount(pfx), project->GetPfxParamA(pfx),
+        project->GetPfxParamB(pfx));
+
+    // Post-PFX sends use the strongest mix among tracks assigned to this bus.
+    for (int fx = 0; fx < OUTPUT_EFFECT_COUNT; ++fx) {
+      AudioSample strongestMix = kAudioSampleZero;
+      for (int channel = 0; channel < SONG_CHANNEL_COUNT; ++channel) {
+        if (channelRouting_[channel].pfxBusIndex != pfx) {
+          continue;
+        }
+        const AudioSample sendMix = ToLogVolume(
+            project->GetChannelFXSend(channel, fx), OutputEffectSendMaximum);
+        if (sendMix > strongestMix) {
+          strongestMix = sendMix;
+        }
+      }
+      const bool routeAdded = slot.AddPostSendRouting(
+          OutputEffectSlotAt(fx).GetAccumulationBuffer(), strongestMix);
+      NAssert(routeAdded);
+    }
   }
 
   for (int fx = 0; fx < OUTPUT_EFFECT_COUNT; ++fx) {
@@ -408,7 +432,13 @@ void MixerService::PrepareRenderPass(Project *project) {
   }
 
   for (int pfx = 0; pfx < PERFORMANCE_FX_BUS_COUNT; ++pfx) {
-    PerformanceFxSlotAt(pfx).ClearAccumulationBuffer();
+    PerformanceFxSlot &slot = PerformanceFxSlotAt(pfx);
+    slot.ClearAccumulationBuffer();
+    slot.SetEffectParameters(
+        static_cast<PerformanceFxEffectType>(project->GetPfxEffectType(pfx)),
+        project->GetPfxAmount(pfx), project->GetPfxParamA(pfx),
+        project->GetPfxParamB(pfx));
+    slot.SetEngaged(IsPerformanceFxEngaged(pfx));
   }
 
   for (int fx = 0; fx < OUTPUT_EFFECT_COUNT; ++fx) {
@@ -448,6 +478,34 @@ PerformanceFxSlot *MixerService::GetPerformanceFxSlot(int index) {
     return nullptr;
   }
   return &performanceEffects_[index].value();
+}
+
+void MixerService::SetPerformanceFxTrigger(int bus, bool held) {
+  if (bus < 0 || bus >= PERFORMANCE_FX_BUS_COUNT) {
+    return;
+  }
+  pfxTriggerHeld_[bus] = held;
+}
+
+void MixerService::TogglePerformanceFxLatch(int bus) {
+  if (bus < 0 || bus >= PERFORMANCE_FX_BUS_COUNT) {
+    return;
+  }
+  pfxLatchOn_[bus] = !pfxLatchOn_[bus];
+}
+
+bool MixerService::IsPerformanceFxLatched(int bus) const {
+  if (bus < 0 || bus >= PERFORMANCE_FX_BUS_COUNT) {
+    return false;
+  }
+  return pfxLatchOn_[bus];
+}
+
+bool MixerService::IsPerformanceFxEngaged(int bus) const {
+  if (bus < 0 || bus >= PERFORMANCE_FX_BUS_COUNT) {
+    return false;
+  }
+  return pfxTriggerHeld_[bus] || pfxLatchOn_[bus];
 }
 
 int MixerService::GetPlayedBufferPercentage() {

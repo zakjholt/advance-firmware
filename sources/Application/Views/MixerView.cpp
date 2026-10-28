@@ -296,6 +296,14 @@ void MixerView::ProcessButtonMask(unsigned short mask, bool pressed) {
     return;
   }
 
+  if ((mask & EPBM_NAV) && (mask & EPBM_RIGHT)) {
+    ViewType vt = VT_PERFORMANCE_EFFECTS;
+    ViewEvent ve(VET_SWITCH_VIEW, &vt);
+    SetChanged();
+    NotifyObservers(&ve);
+    return;
+  }
+
   if ((mask & EPBM_NAV) && (mask & EPBM_DOWN)) {
     if (viewData_ && selectedRow_ >= MixerFirstEffectRow &&
         selectedRow_ < MixerEffectRowEnd) {

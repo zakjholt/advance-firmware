@@ -61,6 +61,7 @@ enum ViewType {
   VT_GROOVE,
   VT_MIXER,
   VT_MASTER_EFFECTS,
+  VT_PERFORMANCE_EFFECTS,
   VT_IMPORT,            // Sample file import
   VT_INSTRUMENT_IMPORT, // Instrument file import
   VT_FM6_PRESETS,       // FM6 built-in preset browser

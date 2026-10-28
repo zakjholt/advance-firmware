@@ -15,6 +15,7 @@ PerformanceFxSlot::PerformanceFxSlot(AudioSample *inputBuffer)
     : inputBuffer_(inputBuffer) {
   NAssert(inputBuffer_);
   ClearAccumulationBuffer();
+  ClearPostSendRouting();
 }
 
 void PerformanceFxSlot::ClearAccumulationBuffer() {
@@ -22,6 +23,35 @@ void PerformanceFxSlot::ClearAccumulationBuffer() {
 }
 
 AudioSample *PerformanceFxSlot::GetAccumulationBuffer() { return inputBuffer_; }
+
+void PerformanceFxSlot::SetEngaged(bool engaged) { engaged_ = engaged; }
+
+void PerformanceFxSlot::SetEffectParameters(PerformanceFxEffectType type,
+                                            int amount, int paramA,
+                                            int paramB) {
+  const PerformanceFxEffectType clamped =
+      static_cast<PerformanceFxEffectType>(ClampPerformanceFxEffectType(type));
+  if (clamped != type_) {
+    state_.Reset();
+    type_ = clamped;
+  }
+  amount_ = amount;
+  paramA_ = paramA;
+  paramB_ = paramB;
+}
+
+void PerformanceFxSlot::ClearPostSendRouting() { postSendCount_ = 0; }
+
+bool PerformanceFxSlot::AddPostSendRouting(AudioSample *buffer,
+                                           AudioSample sendGain) {
+  if (buffer == nullptr || postSendCount_ >= OUTPUT_EFFECT_COUNT) {
+    return false;
+  }
+  postSendBuffers_[postSendCount_] = buffer;
+  postSendGains_[postSendCount_] = sendGain;
+  ++postSendCount_;
+  return true;
+}
 
 PICOTRACKER_FAST_CODE("performance_fx_slot_has_input")
 bool PerformanceFxSlot::HasInput(int count) const {
@@ -42,5 +72,22 @@ bool PerformanceFxSlot::Render(AudioSample *buffer, int samplecount) {
   }
 
   memcpy(buffer, inputBuffer_, static_cast<size_t>(count) * sizeof(AudioSample));
+
+  if (engaged_ && type_ != kPerformanceFxEffectNone) {
+    PerformanceFxProcess(type_, buffer, samplecount, amount_, paramA_, paramB_,
+                         state_);
+  }
+
+  for (uint8_t send = 0; send < postSendCount_; ++send) {
+    AudioSample *sendBuffer = postSendBuffers_[send];
+    const AudioSample sendGain = postSendGains_[send];
+    if (sendGain == kAudioSampleZero) {
+      continue;
+    }
+    for (int i = 0; i < count; ++i) {
+      sendBuffer[i] += buffer[i] * sendGain;
+    }
+  }
+
   return true;
 }

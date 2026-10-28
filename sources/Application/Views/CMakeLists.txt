@@ -35,6 +35,7 @@ add_library(application_views
   ScreenView.cpp
   MixerView.cpp
   MasterEffectsView.cpp
+  PerformanceEffectsView.cpp
   SampleIndexField.cpp
   SampleEditorView.cpp
   SampleEditProgressDisplay.cpp
