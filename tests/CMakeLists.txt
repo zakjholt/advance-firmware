@@ -44,6 +44,7 @@ add_executable(picoTracker_tests
   model_allocation_tests.cpp
   project_channel_count_tests.cpp
   project_output_effect_tests.cpp
+  project_performance_fx_tests.cpp
   stubs/application_link_stubs.cpp
   stubs/nanoprintf_impl.c
   browser_entry_sort_tests.cpp

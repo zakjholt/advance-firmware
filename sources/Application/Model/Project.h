@@ -17,6 +17,7 @@
 #include "Application/Effects/DattorroReverbOutputEffect.h"
 #include "Application/Effects/DelayOutputEffect.h"
 #include "Application/Effects/OutputEffectConstants.h"
+#include "Application/Effects/PerformanceFxConstants.h"
 #include "Application/Instruments/InstrumentBank.h"
 #include "Application/Model/TempoConstants.h"
 #include "Application/Persistency/PersistencyService.h"
@@ -48,6 +49,14 @@ public:
   int GetChannelFXSend(int channel, int fx);
   int GetFXReturnVolume(int fx);
   int GetFXSend(int sourceFx, int destinationFx);
+  // Persisted assignment: 0=OFF, 1=PFX bus 0, 2=PFX bus 1.
+  int GetChannelPfxAssignment(int channel) const;
+  // Zero-based bus index, or -1 when unassigned.
+  int GetChannelPfxBusIndex(int channel) const;
+  int GetPfxEffectType(int bus) const;
+  int GetPfxAmount(int bus) const;
+  int GetPfxParamA(int bus) const;
+  int GetPfxParamB(int bus) const;
   OutputEffect *GetOutputEffect(int fx);
   const OutputEffect *GetOutputEffect(int fx) const;
   bool IsMixRoutingDirty() const;
@@ -76,7 +85,8 @@ public:
   virtual void RestoreContent(PersistencyDocument *doc);
 
 private:
-  etl::vector<Variable *, 80> variables_;
+  // Room for mixer / master FX / delay / reverb / PFX project parameters.
+  etl::vector<Variable *, 96> variables_;
 
   InstrumentBank instrumentBank_;
   NoneOutputEffect fx1Effect_;
@@ -145,6 +155,22 @@ private:
   WatchedVariable fx2ToFX3Send_;
   WatchedVariable fx2ToFX4Send_;
   WatchedVariable fx3ToFX4Send_;
+  WatchedVariable channel1PfxBus_;
+  WatchedVariable channel2PfxBus_;
+  WatchedVariable channel3PfxBus_;
+  WatchedVariable channel4PfxBus_;
+  WatchedVariable channel5PfxBus_;
+  WatchedVariable channel6PfxBus_;
+  WatchedVariable channel7PfxBus_;
+  WatchedVariable channel8PfxBus_;
+  WatchedVariable pfx1EffectType_;
+  WatchedVariable pfx1Amount_;
+  WatchedVariable pfx1ParamA_;
+  WatchedVariable pfx1ParamB_;
+  WatchedVariable pfx2EffectType_;
+  WatchedVariable pfx2Amount_;
+  WatchedVariable pfx2ParamA_;
+  WatchedVariable pfx2ParamB_;
   Variable wrap_;
   Variable transpose_;
   Variable scale_;
