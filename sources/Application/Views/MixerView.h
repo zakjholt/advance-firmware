@@ -15,6 +15,7 @@
 #define _MIXER_VIEW_H_
 
 #include "Application/Effects/OutputEffectConstants.h"
+#include "Application/Effects/PerformanceFxConstants.h"
 #include "BaseClasses/UIIntVarField.h"
 #include "FieldView.h"
 #include "ViewData.h"
@@ -45,9 +46,10 @@ protected:
 
 private:
   // FX1 and FX2 remain reserved but are hidden until they have effects.
+  // Rows: VOL, PFX assignment, then visible master-effect sends (DLY/RVB).
   static constexpr int MixerEffectRowCount =
       OUTPUT_EFFECT_COUNT - kOutputEffectDelayIndex;
-  static constexpr int MixerRowCount = 1 + MixerEffectRowCount;
+  static constexpr int MixerRowCount = 2 + MixerEffectRowCount;
   static constexpr int MixerStripCount = SONG_CHANNEL_COUNT + 1;
 
   void drawChannelVUMeters(etl::array<stereosample, SONG_CHANNEL_COUNT> *levels,
@@ -59,6 +61,7 @@ private:
   void syncFocusToSelection();
 
   etl::vector<UIIntVarField, SONG_CHANNEL_COUNT> channelVolumeFields_;
+  etl::vector<UIIntVarField, SONG_CHANNEL_COUNT> channelPfxFields_;
   etl::vector<UIIntVarField, SONG_CHANNEL_COUNT * OUTPUT_EFFECT_COUNT>
       channelSendFields_;
   etl::vector<UIIntVarField, OUTPUT_EFFECT_COUNT> fxReturnFields_;

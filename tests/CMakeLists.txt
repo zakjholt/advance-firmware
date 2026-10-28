@@ -45,6 +45,8 @@ add_executable(picoTracker_tests
   project_channel_count_tests.cpp
   project_output_effect_tests.cpp
   project_performance_fx_tests.cpp
+  performance_fx_slot_tests.cpp
+  performance_fx_routing_tests.cpp
   stubs/application_link_stubs.cpp
   stubs/nanoprintf_impl.c
   browser_entry_sort_tests.cpp
@@ -96,6 +98,7 @@ add_executable(picoTracker_tests
   ../sources/Application/Effects/DattorroReverb.cpp
   ../sources/Application/Effects/OutputEffect.cpp
   ../sources/Application/Effects/OutputEffectSlot.cpp
+  ../sources/Application/Effects/PerformanceFxSlot.cpp
   ../sources/Application/Effects/DattorroReverbOutputEffect.cpp
   ../sources/Application/Model/Chain.cpp
   ../sources/Application/Model/Config.cpp
