@@ -450,6 +450,25 @@ struct FourCC {
     VarReverbModulationRate,
     VarReverbModulationDepth,
     VarReverbDiffuse,
+    // Performance FX (PFX) — keep new persisted IDs at the end.
+    // Channel assignments are contiguous: 0=OFF, 1=bus0, 2=bus1.
+    VarChannel1PfxBus,
+    VarChannel2PfxBus,
+    VarChannel3PfxBus,
+    VarChannel4PfxBus,
+    VarChannel5PfxBus,
+    VarChannel6PfxBus,
+    VarChannel7PfxBus,
+    VarChannel8PfxBus,
+    // Per-bus params are contiguous blocks of four (type, amount, paramA, paramB).
+    VarPfx1EffectType,
+    VarPfx1Amount,
+    VarPfx1ParamA,
+    VarPfx1ParamB,
+    VarPfx2EffectType,
+    VarPfx2Amount,
+    VarPfx2ParamA,
+    VarPfx2ParamB,
   };
   ETL_DECLARE_ENUM_TYPE(FourCC, uint16_t)
   // Not all enums need reflection. Only cases where we need reflection is the
@@ -730,6 +749,22 @@ struct FourCC {
   ETL_ENUM_TYPE(picoSwarmInstrumentMix, "mix")
   ETL_ENUM_TYPE(picoSwarmInstrumentTable, "table")
   ETL_ENUM_TYPE(picoSwarmInstrumentTableAutomation, "table automation")
+  ETL_ENUM_TYPE(VarChannel1PfxBus, "channel1pfxbus")
+  ETL_ENUM_TYPE(VarChannel2PfxBus, "channel2pfxbus")
+  ETL_ENUM_TYPE(VarChannel3PfxBus, "channel3pfxbus")
+  ETL_ENUM_TYPE(VarChannel4PfxBus, "channel4pfxbus")
+  ETL_ENUM_TYPE(VarChannel5PfxBus, "channel5pfxbus")
+  ETL_ENUM_TYPE(VarChannel6PfxBus, "channel6pfxbus")
+  ETL_ENUM_TYPE(VarChannel7PfxBus, "channel7pfxbus")
+  ETL_ENUM_TYPE(VarChannel8PfxBus, "channel8pfxbus")
+  ETL_ENUM_TYPE(VarPfx1EffectType, "pfx1type")
+  ETL_ENUM_TYPE(VarPfx1Amount, "pfx1amount")
+  ETL_ENUM_TYPE(VarPfx1ParamA, "pfx1parama")
+  ETL_ENUM_TYPE(VarPfx1ParamB, "pfx1paramb")
+  ETL_ENUM_TYPE(VarPfx2EffectType, "pfx2type")
+  ETL_ENUM_TYPE(VarPfx2Amount, "pfx2amount")
+  ETL_ENUM_TYPE(VarPfx2ParamA, "pfx2parama")
+  ETL_ENUM_TYPE(VarPfx2ParamB, "pfx2paramb")
 
   ETL_ENUM_TYPE(Default, "   ")
   ETL_END_ENUM_TYPE
@@ -746,6 +781,10 @@ static_assert(FourCC::VarChannel8FX4Send == FourCC::VarChannel1FX1Send + 31,
               "Channel FX send IDs must remain contiguous");
 static_assert(FourCC::VarFX4Volume == FourCC::VarFX1Volume + 3,
               "FX return volume IDs must remain contiguous");
+static_assert(FourCC::VarChannel8PfxBus == FourCC::VarChannel1PfxBus + 7,
+              "Channel PFX assignment IDs must remain contiguous");
+static_assert(FourCC::VarPfx2ParamB == FourCC::VarPfx1EffectType + 7,
+              "PFX bus parameter IDs must remain contiguous");
 typedef unsigned short ushort;
 typedef unsigned int uint;
 typedef unsigned char uchar;

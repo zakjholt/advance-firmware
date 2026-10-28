@@ -35,6 +35,7 @@
 #define DEFAULT_FX_RETURN_VOLUME OutputEffectReturnMaximum
 #define DEFAULT_FX_ROUTING_SEND 0
 #define DEFAULT_PREVIEW_VOLUME 60
+#define DEFAULT_CHANNEL_PFX_ASSIGNMENT kPerformanceFxAssignmentOff
 
 #define DATA_UNUSED_VALUE 0xFF
 
@@ -80,6 +81,12 @@ bool IsMixRoutingVariable(FourCC id) {
     return true;
   }
   if (id >= FourCC::VarFX1Volume && id <= FourCC::VarFX3ToFX4Send) {
+    return true;
+  }
+  if (id >= FourCC::VarChannel1PfxBus && id <= FourCC::VarChannel8PfxBus) {
+    return true;
+  }
+  if (id >= FourCC::VarPfx1EffectType && id <= FourCC::VarPfx2ParamB) {
     return true;
   }
   return false;
@@ -141,6 +148,22 @@ Project::Project(const char *name)
       fx2ToFX3Send_(FourCC::VarFX2ToFX3Send, DEFAULT_FX_ROUTING_SEND),
       fx2ToFX4Send_(FourCC::VarFX2ToFX4Send, DEFAULT_FX_ROUTING_SEND),
       fx3ToFX4Send_(FourCC::VarFX3ToFX4Send, DEFAULT_FX_ROUTING_SEND),
+      channel1PfxBus_(FourCC::VarChannel1PfxBus, DEFAULT_CHANNEL_PFX_ASSIGNMENT),
+      channel2PfxBus_(FourCC::VarChannel2PfxBus, DEFAULT_CHANNEL_PFX_ASSIGNMENT),
+      channel3PfxBus_(FourCC::VarChannel3PfxBus, DEFAULT_CHANNEL_PFX_ASSIGNMENT),
+      channel4PfxBus_(FourCC::VarChannel4PfxBus, DEFAULT_CHANNEL_PFX_ASSIGNMENT),
+      channel5PfxBus_(FourCC::VarChannel5PfxBus, DEFAULT_CHANNEL_PFX_ASSIGNMENT),
+      channel6PfxBus_(FourCC::VarChannel6PfxBus, DEFAULT_CHANNEL_PFX_ASSIGNMENT),
+      channel7PfxBus_(FourCC::VarChannel7PfxBus, DEFAULT_CHANNEL_PFX_ASSIGNMENT),
+      channel8PfxBus_(FourCC::VarChannel8PfxBus, DEFAULT_CHANNEL_PFX_ASSIGNMENT),
+      pfx1EffectType_(FourCC::VarPfx1EffectType, kDefaultPerformanceFxEffectType),
+      pfx1Amount_(FourCC::VarPfx1Amount, kDefaultPerformanceFxAmount),
+      pfx1ParamA_(FourCC::VarPfx1ParamA, kDefaultPerformanceFxParam),
+      pfx1ParamB_(FourCC::VarPfx1ParamB, kDefaultPerformanceFxParam),
+      pfx2EffectType_(FourCC::VarPfx2EffectType, kDefaultPerformanceFxEffectType),
+      pfx2Amount_(FourCC::VarPfx2Amount, kDefaultPerformanceFxAmount),
+      pfx2ParamA_(FourCC::VarPfx2ParamA, kDefaultPerformanceFxParam),
+      pfx2ParamB_(FourCC::VarPfx2ParamB, kDefaultPerformanceFxParam),
       wrap_(FourCC::VarWrap, false), transpose_(FourCC::VarTranspose, 0),
       scale_(FourCC::VarScale, scaleNames, numScales, 0),
       scaleRoot_(FourCC::VarScaleRoot, noteNames, 12, 0),
@@ -207,6 +230,22 @@ Project::Project(const char *name)
   this->variables_.insert(variables_.end(), &fx2ToFX3Send_);
   this->variables_.insert(variables_.end(), &fx2ToFX4Send_);
   this->variables_.insert(variables_.end(), &fx3ToFX4Send_);
+  this->variables_.insert(variables_.end(), &channel1PfxBus_);
+  this->variables_.insert(variables_.end(), &channel2PfxBus_);
+  this->variables_.insert(variables_.end(), &channel3PfxBus_);
+  this->variables_.insert(variables_.end(), &channel4PfxBus_);
+  this->variables_.insert(variables_.end(), &channel5PfxBus_);
+  this->variables_.insert(variables_.end(), &channel6PfxBus_);
+  this->variables_.insert(variables_.end(), &channel7PfxBus_);
+  this->variables_.insert(variables_.end(), &channel8PfxBus_);
+  this->variables_.insert(variables_.end(), &pfx1EffectType_);
+  this->variables_.insert(variables_.end(), &pfx1Amount_);
+  this->variables_.insert(variables_.end(), &pfx1ParamA_);
+  this->variables_.insert(variables_.end(), &pfx1ParamB_);
+  this->variables_.insert(variables_.end(), &pfx2EffectType_);
+  this->variables_.insert(variables_.end(), &pfx2Amount_);
+  this->variables_.insert(variables_.end(), &pfx2ParamA_);
+  this->variables_.insert(variables_.end(), &pfx2ParamB_);
 
   this->variables_.insert(variables_.end(), &wrap_);
   this->variables_.insert(variables_.end(), &transpose_);
@@ -241,6 +280,12 @@ Project::Project(const char *name)
       &fx2Volume_,       &fx3Volume_,       &fx4Volume_,
       &fx1ToFX2Send_,    &fx1ToFX3Send_,    &fx1ToFX4Send_,
       &fx2ToFX3Send_,    &fx2ToFX4Send_,    &fx3ToFX4Send_,
+      &channel1PfxBus_,  &channel2PfxBus_,  &channel3PfxBus_,
+      &channel4PfxBus_,  &channel5PfxBus_,  &channel6PfxBus_,
+      &channel7PfxBus_,  &channel8PfxBus_,  &pfx1EffectType_,
+      &pfx1Amount_,      &pfx1ParamA_,      &pfx1ParamB_,
+      &pfx2EffectType_,  &pfx2Amount_,      &pfx2ParamA_,
+      &pfx2ParamB_,
   };
   for (WatchedVariable *var : mixRoutingVars) {
     var->AddObserver(*this);
@@ -330,6 +375,22 @@ void Project::Load(const char *name) {
   fx2ToFX3Send_.Reset();
   fx2ToFX4Send_.Reset();
   fx3ToFX4Send_.Reset();
+  channel1PfxBus_.Reset();
+  channel2PfxBus_.Reset();
+  channel3PfxBus_.Reset();
+  channel4PfxBus_.Reset();
+  channel5PfxBus_.Reset();
+  channel6PfxBus_.Reset();
+  channel7PfxBus_.Reset();
+  channel8PfxBus_.Reset();
+  pfx1EffectType_.Reset();
+  pfx1Amount_.Reset();
+  pfx1ParamA_.Reset();
+  pfx1ParamB_.Reset();
+  pfx2EffectType_.Reset();
+  pfx2Amount_.Reset();
+  pfx2ParamA_.Reset();
+  pfx2ParamB_.Reset();
   wrap_.Reset();
   transpose_.Reset();
   scale_.Reset();
@@ -531,6 +592,82 @@ int Project::GetFXSend(int sourceFx, int destinationFx) {
 
   NAssert(false);
   return 0;
+}
+
+int Project::GetChannelPfxAssignment(int channel) const {
+  switch (channel) {
+  case 0:
+    return channel1PfxBus_.GetInt();
+  case 1:
+    return channel2PfxBus_.GetInt();
+  case 2:
+    return channel3PfxBus_.GetInt();
+  case 3:
+    return channel4PfxBus_.GetInt();
+  case 4:
+    return channel5PfxBus_.GetInt();
+  case 5:
+    return channel6PfxBus_.GetInt();
+  case 6:
+    return channel7PfxBus_.GetInt();
+  case 7:
+    return channel8PfxBus_.GetInt();
+  default:
+    NAssert(false);
+    return kPerformanceFxAssignmentOff;
+  }
+}
+
+int Project::GetChannelPfxBusIndex(int channel) const {
+  return PerformanceFxAssignmentToBusIndex(GetChannelPfxAssignment(channel));
+}
+
+int Project::GetPfxEffectType(int bus) const {
+  switch (ClampPerformanceFxBusIndex(bus)) {
+  case 0:
+    return ClampPerformanceFxEffectType(pfx1EffectType_.GetInt());
+  case 1:
+    return ClampPerformanceFxEffectType(pfx2EffectType_.GetInt());
+  default:
+    NAssert(false);
+    return kDefaultPerformanceFxEffectType;
+  }
+}
+
+int Project::GetPfxAmount(int bus) const {
+  switch (ClampPerformanceFxBusIndex(bus)) {
+  case 0:
+    return pfx1Amount_.GetInt();
+  case 1:
+    return pfx2Amount_.GetInt();
+  default:
+    NAssert(false);
+    return kDefaultPerformanceFxAmount;
+  }
+}
+
+int Project::GetPfxParamA(int bus) const {
+  switch (ClampPerformanceFxBusIndex(bus)) {
+  case 0:
+    return pfx1ParamA_.GetInt();
+  case 1:
+    return pfx2ParamA_.GetInt();
+  default:
+    NAssert(false);
+    return kDefaultPerformanceFxParam;
+  }
+}
+
+int Project::GetPfxParamB(int bus) const {
+  switch (ClampPerformanceFxBusIndex(bus)) {
+  case 0:
+    return pfx1ParamB_.GetInt();
+  case 1:
+    return pfx2ParamB_.GetInt();
+  default:
+    NAssert(false);
+    return kDefaultPerformanceFxParam;
+  }
 }
 
 OutputEffect *Project::GetOutputEffect(int fx) {
