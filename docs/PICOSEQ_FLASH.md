@@ -10,32 +10,62 @@ Advance `.bin` so you can restore the official firmware anytime.
 cd ~/dev/picoSeq/tests
 cmake -S . -B build-host
 cmake --build build-host -j8
-./build-host/picoTracker_tests --test-case=*Seq*  # or run all
+./build-host/picoTracker_tests --source-file='*seq_phase0*'
 ```
 
 ## Build (device, picoSeq)
 
 Requires `arm-none-eabi-gcc`, cmake, ninja (see `docs/DEV.md`).
+Presets live under `sources/`:
 
 ```bash
-cd ~/dev/picoSeq
+cd ~/dev/picoSeq/sources
 cmake --preset picoseq-debug
 cmake --build --preset picoseq-debug
 # artifacts:
-#   build-picoseq/Adapters/adv/picoTrackerAdvance.bin
-#   build-picoseq/Adapters/adv/picoTrackerAdvance.elf
+#   ../build-picoseq/Adapters/adv/picoTrackerAdvance.bin
+#   ../build-picoseq/Adapters/adv/picoTrackerAdvance.elf
 ```
 
-Optional: rename the `.bin` to `picoSeq.bin` on the SD card so it is obvious
-which image is the alt firmware.
+The `.bin` is the same Advance bootloader image format as stock (CRC/length
+patched by `tools/crc.py` into `.firmware_info`). You may rename it to
+`picoSeq.bin` on the SD card; the bootloader lists top-level `*.bin` files
+(max 10).
 
-## Flash alt firmware (SD)
+## Flash via SD bootloader (recommended)
 
-1. Copy `picoTrackerAdvance.bin` (or `picoSeq.bin`) to the **top level** of the SD card.
-2. Insert SD into the Advance.
-3. Device screen → **Update firmware** → select the alt image → reboot.
+Flashing always happens in the **Advance bootloader UI**, which reads `.bin`
+files from the SD card top level. There are two ways to **enter** that UI:
+
+### A. From a running app (Device → Update firmware)
+
+1. Copy `picoTrackerAdvance.bin` / `picoSeq.bin` (or a stock `.bin`) to the SD
+   card **top level**.
+2. Insert the SD into the Advance.
+3. Device screen → **Update firmware** → confirm (stop playback first if
+   needed). This **reboots into bootloader mode**.
+4. In the bootloader UI: arrows to select the `.bin` → **ENTER** to install →
+   select **Reboot**.
+
+### B. Boot-button bootloader (no working app required)
+
+Use this if the app will not start (including after a bad flash), or whenever
+you prefer not to use Device → Update:
+
+1. Copy the `.bin` to the SD card top level (same as above).
+2. Hold the **boot button** (small hole **below the SD card slot**) while
+   holding **power** for ~**8 seconds** to reboot into bootloader mode.
+3. In the bootloader UI: select the `.bin` → **ENTER** → **Reboot**.
+
+Source: Advance user manual Device page (`usermanual/.../device.md` /
+https://manual.xiphonics.com/advance/device.html) and `docs/DEV.md`.
+
+**Yes — picoSeq uses this same path.** Our build output is a normal
+`picoTrackerAdvance.bin` for that bootloader; renaming does not change format.
 
 ## Flash alt firmware (ST-LINK)
+
+For development iteration (bypasses the SD bootloader):
 
 ```bash
 openocd -f interface/stlink.cfg -f target/stm32h7x_dual_bank.cfg \
@@ -47,8 +77,9 @@ openocd -f interface/stlink.cfg -f target/stm32h7x_dual_bank.cfg \
 
 1. Obtain the official Advance firmware `.bin` from xiphonics.
 2. Copy it to the SD card top level (max 10 `.bin` files).
-3. Device → Update firmware → select the **stock** image → reboot.
-4. Or ST-LINK/OpenOCD-flash the stock ELF/BIN the same way as above.
+3. Enter the bootloader via **Device → Update firmware** *or* the **boot-button**
+   method above → select the stock `.bin` → ENTER → Reboot.
+4. Or ST-LINK/OpenOCD-flash the stock ELF/BIN.
 
 ## Phase 0 controls (SEQ_MIDI_ONLY)
 
@@ -66,7 +97,7 @@ Serial REPL (UART1 115200, debug builds): `seq status|record|play|stop|save|load
 
 ## Queue / polyphony notes (Phase 0)
 
-- Model: **16 tracks**, `kMaxEventsPerTrack = 512` (~64KB event RAM).
+- Model: **16 tracks**, `kMaxEventsPerTrack = 512` (~64KB event RAM in `.RAM_EXT`).
 - `MIDI_MAX_MESG_QUEUE` under `SEQ_MIDI_ONLY`: `16*8+2+16 = 146` msgs/slice (was `8*4+2+3 = 37`).
 - Soft thru uses `SendImmediate` (not the timed queue).
-- Raise event capacity / move to SDRAM in Phase 1 after denser takes.
+- Raise event capacity in Phase 1 after denser takes.
