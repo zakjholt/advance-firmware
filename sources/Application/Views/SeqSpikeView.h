@@ -12,6 +12,7 @@
 
 // Phase 0 UI: replaces Song view under SEQ_MIDI_ONLY.
 // PLAY = play/stop, EDIT+PLAY = record, ENTER = save part, ALT+ENTER = load.
+// NAV+ALT+ENTER = confirm → reboot into SD firmware bootloader.
 class SeqSpikeView : public View {
 public:
   SeqSpikeView(GUIWindow &w, ViewData *viewData);
@@ -25,6 +26,6 @@ public:
 
 private:
   void drawStatus();
+  void requestBootloader();
 };
-
 #endif

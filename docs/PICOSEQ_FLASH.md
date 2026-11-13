@@ -35,33 +35,41 @@ patched by `tools/crc.py` into `.firmware_info`). You may rename it to
 ## Flash via SD bootloader (recommended)
 
 Flashing always happens in the **Advance bootloader UI**, which reads `.bin`
-files from the SD card top level. There are two ways to **enter** that UI:
+files from the SD card top level. Ways to **enter** that UI:
 
-### A. From a running app (Device → Update firmware)
+### A. From picoSeq (in-app)
+
+Same code path as stock Device → Update firmware:
+`System::SystemBootloader()` → `platform_bootloader()` (jump to bootloader
+at `0x81e0000`).
 
 1. Copy `picoTrackerAdvance.bin` / `picoSeq.bin` (or a stock `.bin`) to the SD
    card **top level**.
-2. Insert the SD into the Advance.
-3. Device screen → **Update firmware** → confirm (stop playback first if
-   needed). This **reboots into bootloader mode**.
-4. In the bootloader UI: arrows to select the `.bin` → **ENTER** to install →
-   select **Reboot**.
+2. Insert the SD; boot picoSeq.
+3. Stop transport if running.
+4. Press **NAV + ALT + ENTER** → confirm **Yes** on “Reboot to bootloader?”.
+5. In the bootloader UI: select the `.bin` → **ENTER** → **Reboot**.
 
-### B. Boot-button bootloader (no working app required)
+### B. From stock Advance (Device → Update firmware)
 
-Use this if the app will not start (including after a bad flash), or whenever
-you prefer not to use Device → Update:
+1. Copy the `.bin` to the SD top level.
+2. Device screen → **Update firmware** → confirm (stop playback first).
+3. Bootloader UI → select `.bin` → ENTER → Reboot.
 
-1. Copy the `.bin` to the SD card top level (same as above).
+### C. Boot-button (no working app required)
+
+Use if the app will not start (including after a bad flash):
+
+1. Copy the `.bin` to the SD card top level.
 2. Hold the **boot button** (small hole **below the SD card slot**) while
-   holding **power** for ~**8 seconds** to reboot into bootloader mode.
-3. In the bootloader UI: select the `.bin` → **ENTER** → **Reboot**.
+   holding **power** for ~**8 seconds**.
+3. Bootloader UI → select `.bin` → ENTER → Reboot.
 
 Source: Advance user manual Device page (`usermanual/.../device.md` /
 https://manual.xiphonics.com/advance/device.html) and `docs/DEV.md`.
 
-**Yes — picoSeq uses this same path.** Our build output is a normal
-`picoTrackerAdvance.bin` for that bootloader; renaming does not change format.
+**Yes — picoSeq `.bin` is the same bootloader image format** (CRC-patched
+`picoTrackerAdvance.bin`); renaming to `picoSeq.bin` is fine.
 
 ## Flash alt firmware (ST-LINK)
 
@@ -77,8 +85,9 @@ openocd -f interface/stlink.cfg -f target/stm32h7x_dual_bank.cfg \
 
 1. Obtain the official Advance firmware `.bin` from xiphonics.
 2. Copy it to the SD card top level (max 10 `.bin` files).
-3. Enter the bootloader via **Device → Update firmware** *or* the **boot-button**
-   method above → select the stock `.bin` → ENTER → Reboot.
+3. Enter the bootloader via **NAV+ALT+ENTER** (picoSeq), **Device → Update
+   firmware** (stock), *or* the **boot-button** method → select the stock
+   `.bin` → ENTER → Reboot.
 4. Or ST-LINK/OpenOCD-flash the stock ELF/BIN.
 
 ## Phase 0 controls (SEQ_MIDI_ONLY)
@@ -92,6 +101,7 @@ On-device spike view (boots instead of Song):
 | LEFT / RIGHT | Arm track 0–15 |
 | ENTER | Save part to `/picoseq/part00.psq` |
 | ALT + ENTER | Load part |
+| NAV + ALT + ENTER | Confirm → reboot into SD firmware bootloader |
 
 Serial REPL (UART1 115200, debug builds): `seq status|record|play|stop|save|load`
 

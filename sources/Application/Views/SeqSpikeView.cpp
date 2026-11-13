@@ -7,9 +7,25 @@
 #include "Application/Views/SeqSpikeView.h"
 #include "Application/Seq/SeqMidiBridge.h"
 #include "Application/Seq/SeqPartStore.h"
+#include "Application/Views/ModalDialogs/MessageBox.h"
 #include "System/Console/Trace.h"
 #include "System/System/System.h"
 #include <nanoprintf.h>
+
+namespace {
+
+void SeqBootloaderCallback(View & /*v*/, ModalView &dialog) {
+  if (dialog.GetReturnCode() == MBL_YES) {
+    System *sys = System::GetInstance();
+    if (sys != nullptr) {
+      // Same path as Device → Update firmware (advSystem::SystemBootloader →
+      // platform_bootloader).
+      sys->SystemBootloader();
+    }
+  }
+}
+
+} // namespace
 
 SeqSpikeView::SeqSpikeView(GUIWindow &w, ViewData *viewData)
     : View(w, viewData) {
@@ -25,6 +41,23 @@ void SeqSpikeView::OnFocus() {
 
 void SeqSpikeView::OnPlayerUpdate(PlayerEventType, unsigned int) {}
 
+void SeqSpikeView::requestBootloader() {
+#ifdef SEQ_MIDI_ONLY
+  auto &engine = picoSeq::SeqMidiBridge::Get().Engine();
+  if (engine.Transport() != picoSeq::SeqTransport::Stopped) {
+    MessageBox *mb =
+        MessageBox::Create(*this, "Stop transport first", MBBF_OK);
+    DoModal(mb);
+    return;
+  }
+
+  MessageBox *mb = MessageBox::Create(*this, "Reboot to bootloader?",
+                                      "Unsaved takes will be lost",
+                                      MBBF_YES | MBBF_NO);
+  DoModal(mb, ModalViewCallback::create<&SeqBootloaderCallback>());
+#endif
+}
+
 void SeqSpikeView::ProcessButtonMask(unsigned short mask, bool pressed) {
   if (!pressed) {
     return;
@@ -33,6 +66,13 @@ void SeqSpikeView::ProcessButtonMask(unsigned short mask, bool pressed) {
 #ifdef SEQ_MIDI_ONLY
   auto &bridge = picoSeq::SeqMidiBridge::Get();
   auto &engine = bridge.Engine();
+
+  // Safe triple-modifier: NAV+ALT+ENTER → confirm → SD bootloader UI.
+  // Mirrors Device → Update firmware without colliding with save/load/rec.
+  if ((mask & EPBM_NAV) && (mask & EPBM_ALT) && (mask & EPBM_ENTER)) {
+    requestBootloader();
+    return;
+  }
 
   if ((mask & EPBM_PLAY) && (mask & EPBM_EDIT)) {
     engine.Record();
@@ -125,7 +165,8 @@ void SeqSpikeView::drawStatus() {
   DrawString(0, 5, "PLAY play/stop  EDIT+PLAY rec", props);
   DrawString(0, 6, "ENTER save  ALT+ENTER load", props);
   DrawString(0, 7, "LEFT/RIGHT arm track 1-16", props);
-  DrawString(0, 9, "Stock reflash: SD Update firmware", props);
+  DrawString(0, 9, "NAV+ALT+ENTER bootloader (confirm)", props);
+  DrawString(0, 10, "or boot-btn+power ~8s", props);
 #else
   GUITextProperties props;
   SetColor(CD_NORMAL);
@@ -144,7 +185,6 @@ void SeqSpikeView::AnimationUpdate() {
   if (sys != nullptr) {
     picoSeq::SeqMidiBridge::Get().OnServiceTick(sys->Micros());
   }
-  // Keep status fresh while running.
   if (picoSeq::SeqMidiBridge::Get().Engine().Transport() !=
       picoSeq::SeqTransport::Stopped) {
     isDirty_ = true;
