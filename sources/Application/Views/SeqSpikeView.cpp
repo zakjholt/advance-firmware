@@ -166,7 +166,7 @@ void SeqSpikeView::drawStatus() {
   DrawString(0, 6, "ENTER save  ALT+ENTER load", props);
   DrawString(0, 7, "LEFT/RIGHT arm track 1-16", props);
   DrawString(0, 9, "NAV+ALT+ENTER bootloader (confirm)", props);
-  DrawString(0, 10, "or boot-btn+power ~8s", props);
+  DrawString(0, 10, "Hold POWER 3s to shut down", props);
 #else
   GUITextProperties props;
   SetColor(CD_NORMAL);
@@ -194,4 +194,9 @@ void SeqSpikeView::AnimationUpdate() {
     DrawView();
     isDirty_ = false;
   }
+
+  // Same hold-to-shutdown path as ScreenView (stock Song/Device/etc.).
+  // SeqSpikeView subclasses View directly, so it must call this each tick.
+  GUITextProperties props;
+  drawPowerButtonUI(props);
 }

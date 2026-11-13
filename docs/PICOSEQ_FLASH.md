@@ -102,6 +102,13 @@ On-device spike view (boots instead of Song):
 | ENTER | Save part to `/picoseq/part00.psq` |
 | ALT + ENTER | Load part |
 | NAV + ALT + ENTER | Confirm → reboot into SD firmware bootloader |
+| Hold POWER ~3s | Stock shutdown (`drawPowerButtonUI` → `AppWindow::PowerDown`) |
+
+Power button: stock Advance screens inherit `ScreenView`, which calls
+`drawPowerButtonUI` every animation tick. Phase 0’s `SeqSpikeView` subclasses
+`View` directly, so it must call the same helper in `AnimationUpdate` or the
+hold-to-shutdown overlay never runs. `View::ProcessButton` still tracks
+`EPBM_POWER`; only the countdown/UI path was missing.
 
 Serial REPL (UART1 115200, debug builds): `seq status|record|play|stop|save|load`
 
