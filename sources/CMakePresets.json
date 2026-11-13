@@ -20,6 +20,18 @@
           "ADV": "true",
           "CMAKE_BUILD_TYPE": "Release"
         }
+      },
+      {
+        "name": "picoseq-debug",
+        "displayName": "picoSeq Debug (SEQ_MIDI_ONLY)",
+        "generator": "Ninja",
+        "binaryDir": "${sourceDir}/../build-picoseq",
+        "cacheVariables": {
+          "ADV": "true",
+          "CMAKE_BUILD_TYPE": "Debug",
+          "SEQ_MIDI_ONLY": "ON",
+          "ENABLE_LOGGING": "ON"
+        }
       }
     ],
         "buildPresets": [
@@ -31,6 +43,11 @@
       {
         "name": "adv-release",
         "configurePreset": "adv-release",
+        "jobs": 16
+      },
+      {
+        "name": "picoseq-debug",
+        "configurePreset": "picoseq-debug",
         "jobs": 16
       }
     ]

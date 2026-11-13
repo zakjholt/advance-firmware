@@ -32,6 +32,13 @@ add_executable(picoTracker_tests
   midi_clock_sync_tests.cpp
   midi_in_device_tests.cpp
   midi_instrument_tests.cpp
+  seq_phase0_tests.cpp
+  ../sources/Application/Seq/MidiEventList.cpp
+  ../sources/Application/Seq/SeqPart.cpp
+  ../sources/Application/Seq/SeqTickClock.cpp
+  ../sources/Application/Seq/MidiRouter.cpp
+  ../sources/Application/Seq/SeqEngine.cpp
+  ../sources/Application/Seq/SeqPartSerializer.cpp
   sample_source_instrument_tests.cpp
   sid_instrument_tests.cpp
   pico_swarm_instrument_tests.cpp

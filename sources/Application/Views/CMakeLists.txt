@@ -41,12 +41,14 @@ add_library(application_views
   SampleSlicer.cpp
   SampleSlicesView.cpp
   CreditsView.cpp
+  SeqSpikeView.cpp
 )
 
 target_link_libraries(application_views PUBLIC
   application_views_baseclasses
   application_effects
   application_instruments
+  application_seq
   etl
   application_utils
   platform_display

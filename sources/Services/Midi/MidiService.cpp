@@ -96,6 +96,22 @@ bool MidiService::Init() {
 
 void MidiService::Close() { Stop(); };
 
+void MidiService::AddInputObserver(I_Observer &observer) {
+  for (auto *dev : inList_) {
+    if (dev != nullptr) {
+      dev->AddObserver(observer);
+    }
+  }
+}
+
+void MidiService::RemoveInputObserver(I_Observer &observer) {
+  for (auto *dev : inList_) {
+    if (dev != nullptr) {
+      dev->RemoveObserver(observer);
+    }
+  }
+}
+
 bool MidiService::Start() {
   currentPlayQueue_ = 0;
   currentOutQueue_ = 0;
