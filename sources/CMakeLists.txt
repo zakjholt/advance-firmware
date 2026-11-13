@@ -14,6 +14,12 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Export compile_commands.json")
 option(ENABLE_LOGGING "Enable Trace logging" OFF)
 option(ENABLE_PROFILING "Enable profiling" OFF)
+option(SEQ_MIDI_ONLY "Build picoSeq MMT alt firmware (bypass tracker UI)" OFF)
+
+if(SEQ_MIDI_ONLY)
+  add_definitions(-DSEQ_MIDI_ONLY)
+  message("picoSeq SEQ_MIDI_ONLY enabled — MMT event-list alt firmware")
+endif()
 
 add_compile_options(
   -Werror
@@ -31,6 +37,9 @@ add_compile_options(
   -Wno-unused-parameter
   -Wno-missing-field-initializers
 )
+
+# GCC 15+: existing AppWindow/UIField overloads hide base signatures
+add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-overloaded-virtual>)
 
 message("picoTracker Advance Build")
 add_definitions(-DADV)

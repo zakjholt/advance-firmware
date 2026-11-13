@@ -14,6 +14,10 @@
 #include "../system/advSystem.h"
 #include "Adapters/adv/audio/record.h"
 #include "Application/Model/Config.h"
+#ifdef SEQ_MIDI_ONLY
+#include "Application/Seq/SeqMidiBridge.h"
+#include "Application/Seq/SeqPartStore.h"
+#endif
 #include "System/FileSystem/FileSystem.h"
 #include "System/FileSystem/I_File.h"
 #include "System/FileSystem/PathUtils.h"
@@ -169,8 +173,45 @@ void SerialDebugUI::dispatchCmd(char *input) {
     StartRecording("/recordings/testrecord.wav", 1, 0);
   } else if (strcmp(cmd, "stoprec") == 0) {
     StopRecording();
-  } else if (strcmp(cmd, "help") == 0) {
-    Trace::Log("SERIALDEBUG", "cat, ls, rm, mkdir, rmdir, save, battery, help");
+  }
+#ifdef SEQ_MIDI_ONLY
+  else if (strcmp(cmd, "seq") == 0) {
+    auto &engine = picoSeq::SeqMidiBridge::Get().Engine();
+    if (arg == nullptr || strcmp(arg, "status") == 0) {
+      Trace::Log("SEQ", "state=%d tick=%lu events=%u armed=%d",
+                 static_cast<int>(engine.Transport()),
+                 static_cast<unsigned long>(engine.PlayTick()),
+                 static_cast<unsigned>(engine.Part().TotalEventCount()),
+                 engine.ArmedTrack());
+    } else if (strcmp(arg, "record") == 0) {
+      engine.Record();
+      Trace::Log("SEQ", "recording");
+    } else if (strcmp(arg, "play") == 0) {
+      engine.Play();
+      Trace::Log("SEQ", "playing");
+    } else if (strcmp(arg, "stop") == 0) {
+      engine.Stop();
+      Trace::Log("SEQ", "stopped");
+    } else if (strcmp(arg, "save") == 0) {
+      Trace::Log("SEQ", picoSeq::SeqPartStore::SavePart(engine.Part())
+                            ? "saved"
+                            : "save failed");
+    } else if (strcmp(arg, "load") == 0) {
+      Trace::Log("SEQ", picoSeq::SeqPartStore::LoadPart(engine.Part())
+                            ? "loaded"
+                            : "load failed");
+    } else {
+      Trace::Log("SEQ", "usage: seq [status|record|play|stop|save|load]");
+    }
+  }
+#endif
+  else if (strcmp(cmd, "help") == 0) {
+    Trace::Log("SERIALDEBUG",
+               "cat, ls, rm, mkdir, rmdir, save, battery, help"
+#ifdef SEQ_MIDI_ONLY
+               ", seq"
+#endif
+    );
   } else {
     Trace::Log("SERIALDEBUG", "unknown command");
   }

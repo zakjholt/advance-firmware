@@ -16,9 +16,15 @@
 #include "Foundation/Observable.h"
 #include "Foundation/Types/Types.h"
 
+// Queue depth for one timing slice. SEQ_MIDI_ONLY targets denser 16-channel
+// polyphony; stock tracker keeps the original 8-channel chord budget.
+#ifdef SEQ_MIDI_ONLY
+#define MIDI_MAX_MESG_QUEUE (16 * 8 + 2 + 16)
+#else
 // if all 8 channels play a 4 note chord at once and we also send clock &
 // start/stop messages & CCs
 #define MIDI_MAX_MESG_QUEUE 8 * 4 + 2 + 3
+#endif
 
 struct MidiMessage : public I_ObservableData {
   enum Type {

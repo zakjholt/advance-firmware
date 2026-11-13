@@ -34,7 +34,12 @@
 #include "Adapters/adv/display/display.h"
 #include "Adapters/adv/system/assets/error_bitmaps.h"
 #include "Application/Views/CreditsView.h"
+#include "Application/Views/SeqSpikeView.h"
 #include "Application/Views/MasterEffectsView.h"
+#ifdef SEQ_MIDI_ONLY
+#include "Application/Seq/SeqMidiBridge.h"
+#include "Services/Midi/MidiService.h"
+#endif
 #include "Application/Views/MixerView.h"
 #include "Application/Views/ModalDialogs/FullScreenBox.h"
 #include "Application/Views/ModalDialogs/MessageBox.h"
@@ -175,6 +180,7 @@ struct AppWindowViews {
   RecordView recordView;
   NullView nullView;
   CreditsView creditsView;
+  SeqSpikeView seqSpikeView;
 
   AppWindowViews(GUIWindow &w, ViewData &viewData)
       : songView(w, &viewData), chainView(w, &viewData),
@@ -187,7 +193,8 @@ struct AppWindowViews {
         selectProjectView(w, &viewData), mixerView(w, &viewData),
         masterEffectsView(w, &viewData), sampleEditorView(w, &viewData),
         sampleSlicesView(w, &viewData), recordView(w, &viewData),
-        nullView(w, &viewData), creditsView(w, &viewData) {}
+        nullView(w, &viewData), creditsView(w, &viewData),
+        seqSpikeView(w, &viewData) {}
 };
 
 void AppWindow::defineColor(FourCC colorCode, GUIColor &color,
@@ -273,6 +280,17 @@ AppWindow::AppWindow(I_GUIWindowImp &imp, const char *projectName)
   views_->sampleSlicesView.AddObserver(*this);
   views_->recordView.AddObserver(*this);
   views_->creditsView.AddObserver(*this);
+  views_->seqSpikeView.AddObserver(*this);
+
+#ifdef SEQ_MIDI_ONLY
+  {
+    MidiService *midi = MidiService::GetInstance();
+    auto &bridge = picoSeq::SeqMidiBridge::Get();
+    bridge.Init();
+    bridge.AttachToService(*midi);
+    midi->AddInputObserver(bridge);
+  }
+#endif
 
   memset(_charScreen, ' ', SCREEN_CHARS);
   memset(_preScreen, ' ', SCREEN_CHARS);
@@ -614,15 +632,26 @@ AppWindow::LoadProjectResult AppWindow::LoadProject(const char *projectName) {
   UIController *controller = UIController::GetInstance();
   controller->Init(project, &viewData_);
 
+#ifdef SEQ_MIDI_ONLY
+  _currentView = &views_->seqSpikeView;
+  _currentView->SetFocus(VT_SEQ_SPIKE);
+#else
   _currentView = &views_->songView;
   _currentView->SetFocus(VT_SONG);
+#endif
 
   MidiService::GetInstance()->ReloadControlSurface();
 
   if (!playerOK) {
+#ifdef SEQ_MIDI_ONLY
+    MessageBox *mb = MessageBox::Create(
+        views_->seqSpikeView, "Failed to initialize audio", MBBF_OK);
+    views_->seqSpikeView.DoModal(mb);
+#else
     MessageBox *mb = MessageBox::Create(views_->songView,
                                         "Failed to initialize audio", MBBF_OK);
     views_->songView.DoModal(mb);
+#endif
   }
 
   if (_currentView) {
@@ -1032,6 +1061,9 @@ void AppWindow::Update(Observable &o, I_ObservableData *d) {
       break;
     case VT_CREDITS:
       _currentView = &views_->creditsView;
+      break;
+    case VT_SEQ_SPIKE:
+      _currentView = &views_->seqSpikeView;
       break;
     default:
       break;

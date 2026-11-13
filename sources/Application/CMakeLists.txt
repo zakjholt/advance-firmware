@@ -17,6 +17,7 @@ target_link_libraries(application PUBLIC
   system_process
   application_commands
   services_midi
+  application_seq
   application_effects
   application_instruments
   application_model
@@ -41,5 +42,6 @@ add_subdirectory(Mixer)
 add_subdirectory(Utils)
 add_subdirectory(Commands)
 add_subdirectory(Persistency)
+add_subdirectory(Seq)
 add_subdirectory(Views)
 add_subdirectory(Audio)

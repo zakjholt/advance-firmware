@@ -71,7 +71,8 @@ enum ViewType {
   VT_SAMPLE_EDITOR,     // Sample Editor
   VT_SAMPLE_SLICES,     // Sample slice editor
   VT_RECORD,            // Recording screen
-  VT_CREDITS            // Credits screen
+  VT_CREDITS,           // Credits screen
+  VT_SEQ_SPIKE          // picoSeq Phase 0 spike transport
 };
 
 enum ViewMode {

@@ -78,6 +78,10 @@ public:
   uint32_t GetControlSurfaceSongWindowOffset() const;
   uint32_t GetControlSurfaceSongWindowRowCount() const;
 
+  // Register an observer on every MIDI input device (e.g. picoSeq bridge).
+  void AddInputObserver(I_Observer &observer);
+  void RemoveInputObserver(I_Observer &observer);
+
 protected:
   etl::vector<MidiInDevice *, 2> inList_;
   etl::vector<MidiOutDevice *, 2> outList_;
